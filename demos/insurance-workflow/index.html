@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>여행자보험 명단 자동화 파이프라인 | 합성 데이터 데모</title>
+<meta name="description" content="손글씨 명단 입력부터 행별 검증, 검수 교정 학습, 보험 페이지 붙여넣기용 스니펫 생성까지의 흐름을 재현한 합성 데이터 데모입니다.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">여행자보험 명단 자동화 파이프라인<span>업무 자동화 · 공개 데모</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="badge">합성 데이터 데모</span>
+      <a href="../../index.html">&larr; 홈으로</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="hero">
+    <h1>수기 명단 한 줄이 가입 신청서가 되기까지</h1>
+    <p>
+      여행자보험 업무에서는 채팅으로 받은 <code>이름 주민번호</code> 명단을 그대로 보험 화면에 붙여넣을 수 없습니다.
+      이름 한 글자나 주민번호 한 자리가 틀려도 그대로 신청서로 넘어가고, 뒤늦게 정산 단계에서야 발견됩니다.
+      이 데모는 원본 프로젝트에서 확인된 흐름 가운데 <strong>검증 · 검수 · 교정 학습 · 스니펫 생성</strong> 구간만
+      브라우저 안에서 다시 보여 줍니다.
+    </p>
+    <div class="chips">
+      <span class="chip">Python</span>
+      <span class="chip">FastAPI / Uvicorn</span>
+      <span class="chip">Jinja2</span>
+      <span class="chip">openpyxl</span>
+      <span class="chip">Playwright (로컬 전용)</span>
+      <span class="chip">Google Sheets 연동</span>
+      <span class="chip">외부 API 호출 없음</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>파이프라인에서 이 데모가 다루는 구간</h2>
+    <p class="section-note">
+      원본 저장소의 README와 모듈 구조에서 확인한 단계입니다. 이 화면에서 직접 조작할 수 있는 단계는
+      파란 번호 표시된 2번부터 4번까지이며, 1번과 5번은 설명 전용입니다.
+    </p>
+    <div class="steps">
+      <article class="step" data-demo="false">
+        <span class="no">1</span>
+        <h3>명단 입력 / 인식</h3>
+        <p>실제 구현은 손글씨 사진에서 텍스트를 추출해 엑셀 양식으로 변환합니다. 이 데모는 그 앞 단계인 텍스트 명단 입력을 대신합니다.</p>
+      </article>
+      <article class="step">
+        <span class="no">2</span>
+        <h3>행별 검증</h3>
+        <p>형식 · 생년월일 · 성별 코드 · 체크섬 · 중복 · 순번 연속성을 검사해 통과한 행만 다음 단계로 넘깁니다.</p>
+      </article>
+      <article class="step">
+        <span class="no">3</span>
+        <h3>검수 교정과 학습</h3>
+        <p>검수자가 고친 값은 이 브라우저의 학습 사전에 쌓여, 같은 오탈자가 다시 나오면 자동으로 반영됩니다.</p>
+      </article>
+      <article class="step">
+        <span class="no">4</span>
+        <h3>스니펫 생성</h3>
+        <p>통과한 명단만으로 가입 페이지 입력용 한 줄 스니펫과, 팝업에 붙여넣을 표 형태를 만들어 줍니다.</p>
+      </article>
+      <article class="step" data-demo="false">
+        <span class="no">5</span>
+        <h3>보험사 다이렉트 가입</h3>
+        <p>로컬 전용 브라우저 자동화가 엑셀을 업로드하고, 최종 결제 직전에는 멈춰 사람이 화면을 검수합니다. 이 데모에서는 실행하지 않습니다.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>조작해 볼 수 있는 데모</h2>
+    <p class="section-note">
+      아래에 붙여 넣은 명단은 전부 가상 데이터이며 실제 사람 정보가 아닙니다.
+      입력 내용은 브라우저 밖으로 전송되지 않고, 입력 폴에도 전송 대상이 없습니다.
+    </p>
+
+    <div class="demo-grid">
+      <div>
+        <div class="card">
+          <h3>1. 명단 입력과 검증</h3>
+          <p class="hint">
+            한 줄에 한 명입니다. <code>이름 주민번호</code>, <code>이름(닉네임) 주민번호</code>,
+            앞에 번호를 붙인 <code>12 이름 주민번호</code> 형식을 모두 받습니다. <code>#</code>로 시작하는 줄은 메모로 무시됩니다.
+          </p>
+          <label class="field" for="rosterInput">명단 텍스트</label>
+          <textarea id="rosterInput" rows="11" spellcheck="false"
+            placeholder="예) 김도현 900615-1203013"></textarea>
+
+          <div class="btn-row">
+            <button type="button" class="primary" id="btnValidate">명단 검증 실행</button>
+            <button type="button" id="btnSample">합성 예시 불러오기</button>
+            <button type="button" class="ghost" id="btnReset">전체 초기화</button>
+          </div>
+
+          <div class="stats" id="stats" aria-live="polite">
+            <div class="stat"><b id="statTotal">0</b><span>입력 행</span></div>
+            <div class="stat" data-tone="ok"><b id="statPass">0</b><span>검증 통과</span></div>
+            <div class="stat" data-tone="err"><b id="statFail">0</b><span>검증 실패</span></div>
+            <div class="stat"><b id="statExcluded">0</b><span>검수에서 제외</span></div>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <caption class="sr-only">명단 검증 결과</caption>
+              <thead>
+                <tr>
+                  <th scope="col">순번</th>
+                  <th scope="col">성명</th>
+                  <th scope="col">생년월일</th>
+                  <th scope="col">성별</th>
+                  <th scope="col">주민번호</th>
+                  <th scope="col">판정</th>
+                </tr>
+              </thead>
+              <tbody id="resultBody">
+                <tr><td colspan="6" class="empty">검증을 실행하면 행별 결과가 여기에 표시됩니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="note">
+            주민번호는 기본적으로 가리고 표시합니다. 스니펫을 만들 때는 검수가 끝난 값이므로 전체 숫자를 출력합니다.
+          </p>
+          <label style="font-size:13px;font-weight:600;display:inline-flex;gap:8px;align-items:center;">
+            <input type="checkbox" id="toggleMask" checked style="width:auto;"> 결과표에서 주민번호 가리기
+          </label>
+        </div>
+
+        <div class="card">
+          <h3>2. 검수 · 교정과 학습 사전</h3>
+          <p class="hint">
+            검증에 실패한 행의 <b>교정</b> 버튼으로 값을 바로잡을 수 있습니다. 자동 검출이 어려운 성명 오탈자는
+            통과한 행에서도 같은 버튼으로 고칠 수 있습니다. 저장한 값은 이 브라우저의
+            학습 사전에 남아 같은 원본 문자열이 다시 입력되면 자동으로 적용됩니다.
+          </p>
+          <div id="learnBox">
+            <p class="hint" style="margin:0;">아직 저장된 교정이 없습니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>3. 스니펫 생성</h3>
+          <p class="hint">
+            검증 통과한 행만 사용합니다. 시작일을 비워 두면 오늘 다음 날이 기본값으로 들어갑니다.
+          </p>
+
+          <label class="field" for="tripKind">여행 구분</label>
+          <select id="tripKind">
+            <option value="DOM">국내여행 (DOM)</option>
+            <option value="ABR">해외여행 (ABR)</option>
+          </select>
+
+          <div id="nationWrap" style="display:none;margin-top:12px;">
+            <label class="field" for="tripNation">국가</label>
+            <input type="text" id="tripNation" placeholder="예: 일본" autocomplete="off">
+          </div>
+
+          <div class="editor grid2" style="margin-top:12px;">
+            <div>
+              <label class="field" for="tripStart">여행 시작일</label>
+              <input type="date" id="tripStart">
+            </div>
+            <div>
+              <label class="field" for="tripEnd">여행 종료일</label>
+              <input type="date" id="tripEnd">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="primary" id="btnSnippet">스니펫 생성</button>
+          </div>
+
+          <p class="kv" id="tripSummary" style="margin-top:12px;">아직 생성하지 않았습니다.</p>
+
+          <div class="out-label">
+            <span>가입 페이지 입력용 한 줄 스니펫</span>
+            <button type="button" class="small" id="btnCopySnippet" disabled>복사</button>
+          </div>
+          <textarea id="outSnippet" rows="7" readonly spellcheck="false" placeholder="검증 통과 명단이 없으면 비워 둡니다."></textarea>
+
+          <div class="out-label">
+            <span>팝업 붙여넣기용 표(이름 ⇥ 주민번호)</span>
+            <button type="button" class="small" id="btnCopyTable" disabled>복사</button>
+          </div>
+          <textarea id="outTable" rows="7" readonly spellcheck="false" placeholder="이름 뒤에 탭 한 칸이 들어갑니다."></textarea>
+
+          <p class="note" id="copyNote" role="status"></p>
+        </div>
+
+        <div class="card">
+          <h3>4. 이 데모와 실제 구현의 차이</h3>
+          <ul class="facts">
+            <li>실제 구현은 손글씨 사진에서 텍스트를 추출하고 엑셀 파일로 저장합니다. 이 데모는 텍스트를 직접 입력받습니다.</li>
+            <li>실제 구현은 주민번호 검수가 끝나면 스프레드시트 매출 데이터와 병합해 재무 리포트를 만듭니다. 이 데모에는 없습니다.</li>
+            <li>실제 가입 자동화는 로그인, 파일 업로드, 화면 입력까지 수행하므로 계정 정보와 별도 실행 환경이 필요합니다. 이 데모는 실행하지 않습니다.</li>
+            <li>검증 규칙은 공개된 표준 알고리즘을 참고해 이 화면에서 다시 구현했습니다. 실제 서비스 코드와 결과가 항상 동일하다는 뜻은 아닙니다.</li>
+            <li>학습 사전은 이 브라우저의 로컬 저장소만 사용하며, 서버 저장이나 전송은 하지 않습니다. 전체 초기화로 지울 수 있습니다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="two-col">
+    <div class="card">
+      <h3>원본에서 확인한 구현</h3>
+      <ul class="facts">
+        <li>명단을 한 번에 처리해 보험 페이지 입력용 텍스트로 바꾸는 스크립트가 있습니다.</li>
+        <li>손글씨 인식 결과는 엑셀 양식 템플릿에 맞춰 변환되며, 모호한 이름은 터미널에서 교정하고 학습 데이터로 누적합니다.</li>
+        <li>검수로 고친 이름은 추출 원본 위에 덮어써, 잘못된 데이터를 지우지 않고 올바른 이름으로 재생성합니다.</li>
+        <li>가입 자동화는 최종 결제 직전까지 멈춰 사용자가 직접 검수하고 결제하도록 설계되어 있습니다.</li>
+        <li>웹 화면용 처리와 로그인이 필요한 가입 자동화가 분리되어 있고, 산출물은 일회성 링크로만 내려받습니다.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>이 데모가 다루지 않는 것</h3>
+      <ul class="facts">
+        <li>실제 사진 인식, 엑셀 파일 생성, 스프레드시트 연동, 외부 API 호출</li>
+        <li>로그인, 브라우저 자동화, 보험사 페이지 입력, 결제 진행</li>
+        <li>실제 데이터베이스나 서버 저장, 파일 생성, 메일 발송</li>
+        <li>실제 서비스명, 회사 정보, 운영 주소, 담당자 연락처</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>합성 데이터 데모 · 원본 저장소의 기능 중 검증 · 검수 · 스니펫 생성 구간만 재현했습니다.</span>
+    <a href="../../index.html">&larr; 홈으로 돌아가기</a>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

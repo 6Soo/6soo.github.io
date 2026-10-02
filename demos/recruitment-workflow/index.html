@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>면접 기록 자동 동기화 · 평가 초안 워크플로우 데모 | 6Soo</title>
+<meta name="description" content="면접 음성 기록을 마크다운 문서로 자동 동기화하고 AI 평가 초안을 채운 뒤 사람이 확정하는 채용 운영 흐름을 합성 데이터로 체험하는 데모입니다.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="home" href="../../index.html">&larr; 홈으로</a>
+    <span class="badge badge-synth">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">채용 운영 자동화 · 문서 워크플로우 · 공개 포트폴리오</p>
+    <h1>면접 기록 자동 동기화 &middot; 평가 초안 워크플로우</h1>
+    <p class="lede">
+      채용 전형을 운영할 때 가장 손이 많이 가는 일은 "면접이 끝난 뒤 기록을 정리하고 평가 문서를 다시 쓰는 일"입니다.
+      이 데모는 면접이 끝나면 자동으로 기록 문서가 쌓이고, 초안이 채워지고, 사람이 원문과 대조해 확정하는
+      그 흐름을 그대로 재현합니다. 화면에 나오는 지원자, 문서명, 발화 내용, 평가 문구는 전부 <strong>합성 예시</strong>이며
+      실제 지원자와 무관합니다.
+    </p>
+    <ul class="hero-points">
+      <li><b>동기화 실행</b> 버튼 하나로 미동기화 면접 문서가 기록 파일로 만들어집니다.</li>
+      <li>이미 <b>확정한 기록</b>은 다시 동기화해도 평가가 덮어써지지 않는지 직접 확인할 수 있습니다.</li>
+      <li>4단계 전형 보드에서 단계를 옮기면 기록 파일의 단계 정보까지 함께 갱신됩니다.</li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="flow-h">
+    <div class="panel-head">
+      <h2 id="flow-h">이 데모가 재현한 업무 흐름</h2>
+      <p class="panel-sub">원본 저장소는 서버 앱이 아니라 채용 문서와 자동화 스크립트를 함께 모아 둔 저장소입니다. 아래 다섯 단계는 그 저장소 문서에 적힌 실제 동기화 순서를 그대로 옮긴 것입니다.</p>
+    </div>
+    <ol class="flow">
+      <li><span class="flow-no">1</span><b>면접 진행</b><span>온라인 면접이 끝나면 자막·노트가 문서 서비스에 텍스트 문서로 저장됩니다.</span></li>
+      <li><span class="flow-no">2</span><b>새 문서 감지</b><span>예약 실행 스크립트가 시간마다 돌아가며 새로 생긴 문서를 찾습니다.</span></li>
+      <li><span class="flow-no">3</span><b>마크다운 변환</b><span>본문 텍스트를 뽑아 기록 템플릿에 맞춰 마크다운 기록 파일을 만듭니다.</span></li>
+      <li><span class="flow-no">4</span><b>평가 초안 채우기</b><span>비어 있던 평가 칸(요약·강점·우려·추천)을 초안으로 채웁니다.</span></li>
+      <li><span class="flow-no">5</span><b>사람이 확정</b><span>원문과 대조해 확정하면 이후 재동기화에서도 그 내용이 보존됩니다.</span></li>
+    </ol>
+  </section>
+
+  <section class="panel" aria-labelledby="sync-h">
+    <div class="panel-head">
+      <h2 id="sync-h">1. 기록 동기화 실행</h2>
+      <p class="panel-sub">
+        왼쪽 목록은 "문서 서비스에 쌓인 면접 텍스트"를 모의한 합성 목록입니다.
+        <b>동기화 실행</b>을 누르면 미동기화 항목만 새 기록 파일로 변환되고, 이미 있는 기록은 파일 ID로 식별해
+        갱신 여부를 나눠 처리합니다.
+      </p>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="syncBtn">동기화 실행</button>
+      <button type="button" class="btn" id="resyncBtn">선택 기록 재동기화</button>
+      <button type="button" class="btn btn-ghost" id="resetBtn">전체 상태 초기화</button>
+      <p class="toolbar-note">외부 전송·파일 저장·서버 통신 없이 브라우저 안에서만 동작합니다.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="subpanel">
+        <div class="subpanel-head">
+          <h3>면접 텍스트 문서 <span class="count" id="docCount"></span></h3>
+          <label class="field-inline">
+            <span class="sr-only">문서 검색</span>
+            <input type="search" id="docSearch" placeholder="지원자 번호나 문서명으로 검색">
+          </label>
+        </div>
+        <p class="subpanel-sub">배지: <span class="pill pill-new">미동기화</span> = 아직 기록 파일이 없음, <span class="pill pill-ok">동기화됨</span> = 기록 파일이 있음</p>
+        <ul class="doclist" id="docList"></ul>
+      </div>
+
+      <div class="subpanel">
+        <div class="subpanel-head">
+          <h3>처리 로그</h3>
+          <p class="subpanel-sub">파이프라인이 어떤 판단을 했는지 순서대로 남깁니다.</p>
+        </div>
+        <ol class="log" id="logList" aria-live="polite"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="record-h">
+    <div class="panel-head">
+      <h2 id="record-h">2. 기록 파일과 평가 초안</h2>
+      <p class="panel-sub">
+        기록 목록에서 하나를 고르면 마크다운 기록 미리보기와 평가 초안이 나옵니다.
+        아래 칸은 직접 수정할 수 있고, <b>초안 확정</b>을 누르면 이후 동기화에서 그 내용이 보존됩니다.
+      </p>
+    </div>
+
+    <div class="toolbar">
+      <label class="field-inline">
+        <span class="field-label">상태 보기</span>
+        <select id="recordFilter">
+          <option value="all">전체</option>
+          <option value="draft">초안 상태</option>
+          <option value="confirmed">확정 상태</option>
+        </select>
+      </label>
+      <label class="field-inline">
+        <span class="field-label">기록 검색</span>
+        <input type="search" id="recordSearch" placeholder="지원자 번호나 기록 제목">
+      </label>
+    </div>
+
+    <div class="grid-2">
+      <div class="subpanel">
+        <div class="subpanel-head">
+          <h3>기록 파일 <span class="count" id="recordCount"></span></h3>
+          <p class="subpanel-sub">경로 예시: records/2026/</p>
+        </div>
+        <ul class="recordlist" id="recordList"></ul>
+      </div>
+
+      <div class="subpanel" id="detailPanel">
+        <div class="subpanel-head">
+          <h3 id="detailTitle">기록 미리보기</h3>
+          <p class="subpanel-sub" id="detailState">왼쪽에서 기록을 선택하세요.</p>
+        </div>
+
+        <div id="detailBody">
+          <p class="empty">아직 선택된 기록이 없습니다. 동기화를 실행한 뒤 기록을 골라 주세요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="stage-h">
+    <div class="panel-head">
+      <h2 id="stage-h">3. 전형 단계 이동</h2>
+      <p class="panel-sub">
+        원본 저장소에 정리된 전형은 네 단계입니다. 1단계 사전문답(3분) → 2단계 온라인 면접 →
+        3단계 모객글 과제 → 4단계 대면 계약. 카드에서 단계를 누르면 해당 지원자의 기록 단계 값도 함께 바뀝니다.
+      </p>
+    </div>
+
+    <ul class="stageboard" id="stageBoard"></ul>
+  </section>
+
+  <section class="panel" aria-labelledby="diff-h">
+    <div class="panel-head">
+      <h2 id="diff-h">데모와 실제 구현의 차이</h2>
+      <p class="panel-sub">이 화면이 무엇을 재현하고 무엇을 재현하지 않는지 구분해 둡니다.</p>
+    </div>
+    <div class="grid-2">
+      <div class="subpanel">
+        <h3>이 데모에서 실제로 재현한 것</h3>
+        <ul class="tick">
+          <li>새 면접 텍스트 문서를 감지해 마크다운 기록 파일로 변환하는 순서</li>
+          <li>기록 템플릿 안에 평가 영역(요약·강점·우려·추천)을 함께 넣는 구조</li>
+          <li>확정된 파일은 재동기화에서도 덮어쓰지 않는 보호 규칙</li>
+          <li>전형 단계 변경이 기록 파일의 단계 정보에 반영되는 흐름</li>
+        </ul>
+      </div>
+      <div class="subpanel">
+        <h3>이 데모가 대신한 부분</h3>
+        <ul class="cross">
+          <li>문서 서비스 연동, 저장소 자동 커밋, 자동화 실행 예약은 실제로 호출하지 않습니다.</li>
+          <li>평가 초안은 외부 모델 호출이 아니라 미리 정해진 합성 문구 조합으로 채웁니다.</li>
+          <li>지원자 인적 정보, 실제 면접 발화, 메일, 계약 자료는 일절 들어오지 않았습니다.</li>
+          <li>개인정보 보관 기간 같은 운영 정책은 원본에서 확인하지 못해 화면에 넣지 않았습니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="subpanel source">
+      <h3>확인 범위와 출처</h3>
+      <p>
+        이 데모의 기능 설명은 원본 저장소의 <code>README.md</code>와
+        <code>recruitment/tools/README.md</code>에 적힌 내용을 바탕으로 했습니다.
+        저장소 구조는 채용 문서·면접 기록 폴더·자동화 스크립트·채용 포털로 구성되며,
+        동기화 대상 문서만 텍스트로 내려받아 기록 폴더에 남긴다고 되어 있습니다.
+        파싱 스크립트는 다른 저장소(<code>6Soo/reservation</code>)의 공용 모듈을 옮겨 온 코드로,
+        해당 저장소의 저작권자가 원저자입니다.
+      </p>
+      <p class="muted">
+        미확인 항목: 자동화 스크립트 내부 구현, 채용 포털 백엔드 코드, 실제 운영 데이터.
+        권한이 없어 직접 확인하지 않았으므로 이 데모에는 반영하지 않았습니다.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p>공개 포트폴리오 데모입니다. 모든 이름·문서·발화·평가 문구는 합성 예시이며 실제 운영 데이터가 아닙니다.</p>
+    <p><a class="home" href="../../index.html">&larr; 홈으로 돌아가기</a></p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

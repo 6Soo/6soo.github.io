@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>면접 녹취 자동 기록 파이프라인 | 6Soo 포트폴리오</title>
+<meta name="description" content="화상 면접 녹취 문서가 기록 저장소에 자동 반영되고 사람 검토를 거쳐 확정되는 문서 자동화 파이프라인 데모. 합성 데이터 사용.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+
+<header class="topbar">
+  <nav class="topbar-inner" aria-label="페이지 이동">
+    <a class="home-link" href="../../index.html">&larr; 6Soo 포트폴리오 홈</a>
+    <span class="badge badge-synthetic">합성 데이터 데모</span>
+  </nav>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 · 문서 파이프라인</p>
+    <h1>면접 녹취 자동 기록 파이프라인</h1>
+    <p class="lead">
+      화상 면접이 끝나면 녹취 문서가 자동으로 감지되어 마크다운 기록으로 쌓이고, 비어 있는 평가 칸은
+      초안으로 채워진 뒤 사람이 원문과 대조해 확정합니다. 이 화면은 그 흐름을 그대로 체험할 수 있는
+      <strong>합성 데이터 데모</strong>입니다.
+    </p>
+    <ul class="hero-facts">
+      <li><strong>5단계</strong> 자동 파이프라인</li>
+      <li><strong>파일 ID</strong> 기반 중복 방지</li>
+      <li>사람 <strong>확정 전제</strong> 설계</li>
+    </ul>
+    <p class="notice">
+      이 데모는 브라우저 안의 정적 HTML/CSS/JS만으로 동작합니다. Google Apps Script, Drive, Gmail,
+      GitHub API, AI 모델을 실제로 호출하지 않으며 입력된 내용은 어디에도 전송되지 않습니다.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="problem-h">
+    <h2 id="problem-h">어떤 문제를 해결했나</h2>
+    <div class="grid grid-3">
+      <article class="card">
+        <h3>수작업 복붙의 누락</h3>
+        <p>면접이 끝날 때마다 사람이 녹취 문서를 찾아 복사하고 파일명을 맞췄습니다. 면접 횟수가 늘면 기록 누락과 파일명 오타가 함께 늘었습니다.</p>
+      </article>
+      <article class="card">
+        <h3>덮어쓰기와 평가 손실</h3>
+        <p>자동화로 바꾸는 과정에서, 이미 만든 평가가 다음 동기화에 밀려 지워질 위험이 생깁니다. 파일 단위 식별로 재동기화 대상을 분리해야 했습니다.</p>
+      </article>
+      <article class="card">
+        <h3>초안과 확정 사이 간극</h3>
+        <p>요약 문장을 자동 생성해도 그대로 믿으면 원문과 어긋납니다. 초안은 반드시 사람 대조 전제로 두고, 확인 전에는 확정 상태로 보지 않게 했습니다.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="demo-h">
+    <h2 id="demo-h">핵심 흐름 데모</h2>
+
+    <div class="card pipeline-card">
+      <div class="card-head">
+        <h3>1. 파이프라인 단계 실행</h3>
+        <button type="button" class="btn btn-primary" id="run-step">다음 단계 실행</button>
+      </div>
+      <p class="card-sub">
+        단계를 순서대로 실행하면 상태 표시가 오른쪽으로 전이되고 로그가 쌓입니다.
+        각 단계 카드를 눌러하면 그 단계가 원본에서 어떤 역할을 하는지 볼 수 있습니다.
+      </p>
+
+      <ol class="stepper" id="stepper" aria-label="파이프라인 단계"></ol>
+
+      <div class="step-detail" id="step-detail" role="status" aria-live="polite"></div>
+
+      <h4 class="log-h">실행 로그</h4>
+      <div class="log" id="log" role="log" aria-live="polite" aria-label="실행 로그"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>2. 새 트랜스크립트 등록</h3>
+      </div>
+      <p class="card-sub">
+        등록한 파일 ID가 이미 동기화된 목록에 있으면 덮어쓰지 않고 건너뜁니다.
+        원본 규칙인 <code>파일 ID로 추적해 재동기화 시 덮어쓰지 않음</code>을 그대로 재현했습니다.
+      </p>
+
+      <form class="form" id="intake-form" novalidate>
+        <div class="field">
+          <label for="doc-id">문서 파일 ID</label>
+          <input type="text" id="doc-id" name="doc-id" placeholder="예) doc-syn-0004" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="doc-title">면접 제목</label>
+          <input type="text" id="doc-title" name="doc-title" placeholder="예) 1차 온라인 인터뷰" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="doc-date">면접일</label>
+          <input type="date" id="doc-date" name="doc-date" required>
+        </div>
+        <div class="field field-wide">
+          <label for="doc-body">녹취 본문 (합성)</label>
+          <textarea id="doc-body" name="doc-body" rows="4" placeholder="합성 예시 문장을 입력해 보세요. 입력한 본문은 마크다운 기록으로 변환되어 카드에 표시됩니다."></textarea>
+        </div>
+        <p class="form-msg" id="intake-msg" role="status" aria-live="polite"></p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">동기화 시도</button>
+          <button type="button" class="btn btn-ghost" id="reset-all">전체 초기화</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="records-h">
+    <h2 id="records-h">3. 기록 카드와 사람 확정</h2>
+
+    <div class="card">
+      <div class="card-head card-head-stack">
+        <h3>기록 목록</h3>
+        <div class="filters" id="filters" role="group" aria-label="기록 상태 필터">
+          <button type="button" class="chip is-active" data-filter="all">전체</button>
+          <button type="button" class="chip" data-filter="pending">검토 필요</button>
+          <button type="button" class="chip" data-filter="confirmed">확정</button>
+          <button type="button" class="chip" data-filter="onhold">보류</button>
+        </div>
+      </div>
+      <p class="card-sub">
+        카드의 <strong>평가 초안 작성</strong> 폼에 요약·강점·우려·추천을 넣고 저장하면 초안이 생깁니다.
+        원문 대조 확인을 체크하고 <strong>확정</strong>을 눌러야 상태가 확정으로 바뀝니다.
+      </p>
+      <p class="count" id="record-count" role="status" aria-live="polite"></p>
+      <div class="records" id="records"></div>
+      <p class="empty" id="empty" hidden>이 조건에 맞는 기록이 없습니다. 필터를 '전체'로 바꿔 보세요.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="how-h">
+    <h2 id="how-h">원본에서 확인한 구조</h2>
+    <div class="grid grid-2">
+      <article class="card">
+        <h3>흐름</h3>
+        <pre class="code">면접 녹취 문서 생성
+  └─ 시간 트리거가 새 문서 감지
+       └─ 본문 추출 → 마크다운 변환 (평가 템플릿 삽입)
+            └─ 저장소 records/ 폴더로 자동 커밋
+                 └─ 후속 자동화 워크가 평가 초안을 채움
+                      └─ 사람이 원문 대조 후 확정</pre>
+      </article>
+      <article class="card">
+        <h3>확인한 설계 포인트</h3>
+        <ul class="ticks">
+          <li>파일 단위 식별자로 재동기화 시 기존 평가를 보존</li>
+          <li>평가 초안은 빈칸인 기록에만 채우고, 사람이 확정</li>
+          <li>원문에 없는 내용은 만들지 않는 원칙을 문서화</li>
+          <li>영상은 저장하지 않고 텍스트와 링크만 보관</li>
+          <li>수동 기록용 마크다운 템플릿을 함께 제공</li>
+          <li>메일 라벨 기반 과제 제출 아카이브를 같은 자동화에 결합</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="stack-h">
+    <h2 id="stack-h">기술 스택</h2>
+    <ul class="tags">
+      <li>Google Apps Script (.gs)</li>
+      <li>Google Docs / Drive</li>
+      <li>Gmail 라벨 필터</li>
+      <li>GitHub REST API</li>
+      <li>GitHub Actions</li>
+      <li>clasp</li>
+      <li>Node.js (.mjs)</li>
+      <li>HTML / CSS / JavaScript</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="limit-h">
+    <h2 id="limit-h">데모와 실제 구현의 차이</h2>
+    <div class="card card-limit">
+      <ul class="limits">
+        <li><strong>실제 호출 없음.</strong> Drive 감지, GitHub 커밋, GitHub Actions 실행, AI 모델 호출을 모두 모사했습니다. 데모 동작은 브라우저 메모리 상태에서만 일어납니다.</li>
+        <li><strong>합성 데이터.</strong> 트랜스크립트 본문, 지원자 코드, 평가 문구는 모두 지어낸 예시입니다. 실제 서비스의 기록, 메일, 지원자 자료는 사용하지 않았습니다.</li>
+        <li><strong>단순화한 AI 평가.</strong> 데모는 사람이 입력한 값을 초안으로 저장·표시합니다. 원본의 모델 프롬프트와 출력 형식은 공개하지 않았습니다.</li>
+        <li><strong>확인 범위 밖.</strong> 서버 인증 설정, API 할당량, 실패 재시도, 대용량 문서 처리, 권한 설정은 검증하지 않았습니다.</li>
+        <li><strong>운영 규칙 비공개.</strong> 개인정보 보관 기간 등 사내 운영 결정 사항은 데모에 반영하지 않았습니다.</li>
+        <li><strong>접근성 참고.</strong> 이 데모 화면은 키보드 조작과 반응형 레이아웃을 고려했고, 데모 내부 로직은 외부 시스템 연동 검증이 불가능해 수동 확인 범위입니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section-source" aria-labelledby="src-h">
+    <h2 id="src-h">구현 근거 파일</h2>
+    <div class="card">
+      <p class="card-sub">공개용 페이지는 비민감 파일만 근거로 작성했습니다. 민감 자료는 열지 않았습니다.</p>
+      <ul class="evidence">
+        <li><code>README.md</code> — 파이프라인 흐름과 덮어쓰기 방지·사람 확정 규칙</li>
+        <li><code>automation/gemini-drive-sync.gs</code> · <code>automation/recruit-sync.gs</code> — 자동화 스크립트 위치</li>
+        <li><code>automation/SETUP.md</code> — 연동 세팅 안내</li>
+        <li><code>.github/workflows/interview-learning.yml</code> — 후속 자동 워크플로</li>
+        <li><code>templates/interview-record-template.md</code> — 수동 기록 템플릿</li>
+        <li><code>recruitment/site/index.html</code> — 정적 포털 화면 구성 참고</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <a class="home-link" href="../../index.html">&larr; 6Soo 포트폴리오 홈</a>
+    <p class="foot-note">합성 데이터 데모 · 외부 전송 없음 · 저장 없음</p>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

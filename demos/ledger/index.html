@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>법인카드 비용 분류 자동화 · 규칙 대화형 장부 데모 (합성 데이터)</title>
+<meta name="description" content="카드사 사용내역을 검증해 장부에 올리고, 규칙 대화로 분류 규칙을 만들어 적용하는 흐름을 합성 데이터로 재현한 정적 데모입니다.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#demo">데모로 바로가기</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="home" href="../../index.html">&larr; 홈으로</a>
+    <span class="badge badge-synthetic">합성 데이터 데모</span>
+    <span class="badge badge-ghost">외부 전송 없음</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 · SI 사례</p>
+    <h1>법인카드 비용 분류 자동화<br>규칙 대화형 장부 데모</h1>
+    <p class="lede">
+      여행사 법인카드 비용처리는 사람이 매번 같은 판단을 반복하는 업무입니다.
+      원본 프로젝트는 <strong>카드사 사용내역 수집 → 비용 분류 판단 → 장부 기록 → 상태 표시</strong>를
+      한 흐름으로 묶고, 반복되는 판단은 <strong>규칙 대화</strong>로 규칙으로 남기는 구조입니다.
+      이 페이지는 그 실제 사용자 흐름만 정적 HTML로 재현한 체험용 데모입니다.
+    </p>
+    <ul class="flow" aria-label="핵심 흐름">
+      <li><b>1</b><span>사용내역<br>가져오기</span></li>
+      <li><b>2</b><span>행별 검증<br>중복 판정</span></li>
+      <li><b>3</b><span>미분류 건<br>규칙 대화</span></li>
+      <li><b>4</b><span>규칙 적용<br>장부 합계</span></li>
+    </ul>
+    <p class="note">
+      이 데모의 회사명·가맹점명·금액·승인번호는 전부 가상의 합성 값입니다.
+      실제 카드 내역, 실제 장부, 실제 AI 모델, 실제 외부 API는 연결되어 있지 않습니다.
+    </p>
+  </section>
+
+  <section class="kpi-strip" id="kpi" aria-label="장부 요약"></section>
+
+  <!-- ===================== 데모 ===================== -->
+  <section class="card demo" id="demo">
+    <div class="card-head">
+      <h2>조작 가능한 데모</h2>
+      <p>아래 순서대로 눌러 보세요. 입력한 값은 브라우저 안에서만 계산되고 어디에도 전송되지 않습니다.</p>
+    </div>
+
+    <div class="demo-grid">
+
+      <!-- 1. 가져오기 -->
+      <div class="panel" id="panel-import">
+        <h3><span class="step">1</span>사용내역 가져오기</h3>
+        <p class="panel-sub">
+          카드사가 내보낸 CSV를 그대로 붙여넣습니다. 원본의 가져오기 계약과 같은 규칙을 적용합니다.
+        </p>
+        <label class="field-label" for="csv-input">CSV 텍스트</label>
+        <textarea id="csv-input" rows="7" spellcheck="false" aria-describedby="csv-help"
+          placeholder="occurred_on,merchant,amount_krw,currency,card_last4,approval_no,cancel_flag,suggested_tab,memo"></textarea>
+        <p class="help" id="csv-help">
+          필수 열: <code>occurred_on</code> <code>merchant</code> <code>amount_krw</code> (원본 import 계약과 동일)
+        </p>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="btn-import">가져오기 실행</button>
+          <button type="button" class="btn" id="btn-sample">샘플 CSV 채우기</button>
+          <button type="button" class="btn" id="btn-sample2">오류 포함 샘플</button>
+        </div>
+        <div class="result" id="import-result" role="status" aria-live="polite"></div>
+      </div>
+
+      <!-- 2. 보드 -->
+      <div class="panel" id="panel-board">
+        <div class="panel-head">
+          <h3><span class="step">2</span>장부 보드</h3>
+          <div class="filters" role="group" aria-label="보드 필터">
+            <button type="button" class="chip is-on" data-filter="all">전체</button>
+            <button type="button" class="chip" data-filter="todo">분류 필요</button>
+            <button type="button" class="chip" data-filter="done">완료</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="board" id="board">
+            <caption class="sr-only">가져온 카드 사용내역과 분류 상태</caption>
+            <thead>
+              <tr>
+                <th scope="col">결제일</th>
+                <th scope="col">가맹점</th>
+                <th scope="col" class="num">금액</th>
+                <th scope="col">구분</th>
+                <th scope="col">상태</th>
+              </tr>
+            </thead>
+            <tbody id="board-body"></tbody>
+          </table>
+        </div>
+        <p class="help">행을 누르면 3번 패널에서 분류와 규칙 만들기를 할 수 있습니다.</p>
+      </div>
+
+      <!-- 3. 분류 패널 -->
+      <div class="panel" id="panel-detail">
+        <h3><span class="step">3</span>건별 분류 &amp; 규칙 만들기</h3>
+        <div id="detail-empty" class="empty">보드에서 행을 선택하세요.</div>
+
+        <div id="detail-body" hidden>
+          <div class="detail-head">
+            <p class="detail-title" id="detail-title"></p>
+            <p class="detail-meta" id="detail-meta"></p>
+          </div>
+
+          <label class="field-label" for="sel-item">비용 항목</label>
+          <select id="sel-item"></select>
+
+          <label class="field-label" for="sel-tab">여행 지정</label>
+          <select id="sel-tab"></select>
+
+          <label class="field-label" for="inp-desc">장부 비고</label>
+          <input type="text" id="inp-desc" maxlength="80" placeholder="예: 4월 제주 숙박 2박">
+
+          <label class="check">
+            <input type="checkbox" id="chk-lock">
+            <span>비용 항목을 수동 지정(잠금) — 규칙이 이 필드를 건너뜁니다</span>
+          </label>
+
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-apply-row">이 건만 장부에 기록</button>
+            <button type="button" class="btn btn-primary" id="btn-open-rule">규칙으로 만들어 적용</button>
+          </div>
+          <div class="result" id="detail-result" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 규칙 대화 -->
+    <div class="panel panel-wide" id="panel-rule" hidden>
+      <div class="panel-head">
+        <h3><span class="step">4</span>규칙 대화</h3>
+        <button type="button" class="btn btn-ghost" id="btn-close-rule">닫기</button>
+      </div>
+      <p class="panel-sub">
+        원본의 규칙 대화는 최대 5개 질문만 묻고, 이미 답한 질문은 다시 묻지 않습니다.
+        이 데모도 같은 순서로 질문하고, 답을 마치면 규칙이 어떤 행에 무엇을 쓸지 미리 보여준 뒤 적용합니다.
+      </p>
+
+      <div class="rule-progress" id="rule-progress" aria-hidden="true"></div>
+      <div id="rule-question" class="rule-question"></div>
+
+      <div id="rule-preview" class="rule-preview" hidden></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn" id="btn-rule-back" hidden>이전 질문</button>
+        <button type="button" class="btn btn-primary" id="btn-rule-next" hidden>다음 질문</button>
+        <button type="button" class="btn btn-primary" id="btn-rule-apply" hidden>규칙 적용</button>
+      </div>
+    </div>
+
+    <!-- 규칙 목록 -->
+    <div class="panel panel-wide" id="panel-rules">
+      <div class="panel-head">
+        <h3>적용된 규칙</h3>
+        <button type="button" class="btn btn-danger" id="btn-reset">전체 상태 초기화</button>
+      </div>
+      <div id="rules-list" class="rules-list"></div>
+    </div>
+  </section>
+
+  <!-- ===================== 확인된 구현 ===================== -->
+  <section class="card">
+    <h2>원본에서 확인한 구현</h2>
+    <div class="two-col">
+      <div>
+        <h3 class="sub">확인된 사실</h3>
+        <ul class="list">
+          <li>가져오기 계약의 필수 열은 <code>occurred_on</code>, <code>merchant</code>, <code>amount_krw</code>이며, 필수 열이 없으면 파일 자체를 거부하고 행 단위로 날짜 형식·숫자 금액·0원 제외를 검사합니다.</li>
+          <li>행 식별은 <b>안정 키</b>와 <b>내용 다이제스트</b>를 분리합니다. 승인번호가 있으면 카드뒷자리와 승인번호로 키를 만들고, 같은 키에 다른 내용이 들어오면 충돌로 표시합니다.</li>
+          <li>파일 단위는 내용 해시로 배치 식별자를 만들어, 같은 파일을 다시 올리면 새 행을 쌓지 않고 기존 결과를 재사용합니다(멱등).</li>
+          <li>분류 상태는 자동 분류(여행 지정 열이 허용 목록에 있을 때)와 미분류로 갈립니다. 취소 플래그가 있으면 취소, 금액이 음수면 환불로 구분합니다.</li>
+          <li>규칙은 조건 필드(가맹점 정규화값·카드 종류·거래 방향)에 eq/in/neq 연산자로 매칭하고, 효과 필드(여행 지정·비용 항목·비고 서식)만 씁니다.</li>
+          <li>규칙 대화는 최대 5개 질문을 고정 순서로 묻고, 답변을 저장한 뒤 규칙을 만들도록 되어 있습니다.</li>
+          <li>서로 다른 값을 쓰는 활성 규칙이 겹치면 충돌을 <b>보고만 하고 자동 해소하지 않으며</b>, 해결 방법은 기존 규칙 대체 또는 조건 좁히기로 선택하도록 되어 있습니다.</li>
+          <li>같은 값을 쓰는 규칙이 이미 있으면 중복 효과로 보고해 같은 값을 다시 쓰지 않습니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="sub">기술 스택</h3>
+        <ul class="tags">
+          <li>Python 3.12</li>
+          <li>SQLite</li>
+          <li>표준 라이브러리 HTTP 서버</li>
+          <li>Google Apps Script</li>
+          <li>openpyxl (XLSX)</li>
+          <li>Google OIDC (google-auth)</li>
+          <li>pytest</li>
+        </ul>
+
+        <h3 class="sub">역량</h3>
+        <ul class="list">
+          <li>반복 회계 업무를 데이터 계약과 검증 규칙으로 정리해 자동화 범위를 확정하기</li>
+          <li>멱등(재실행 안전) 설계로 중복 업로드와 재적용을 구조적으로 막기</li>
+          <li>운영자가 판단 근거를 남기는 규칙 대화 UI와 충돌·예외 흐름 설계</li>
+        </ul>
+
+        <h3 class="sub">구현 범위와 제한</h3>
+        <ul class="list">
+          <li>이 데모는 순수 정적 HTML/CSS/JavaScript입니다. 서버, DB, 원본 파일, 원본 소스 코드와 무관합니다.</li>
+          <li>식별자 해시는 원본의 SHA-256 대신 <b>데모용 축약 해시</b>를 씁니다. 안정 키와 내용 다이제스트를 분리한다는 설계는 동일합니다.</li>
+          <li>실제 AI 모델 호출, 카드사·은행 API, Google Sheets 업로드, 메일 수집, 로그인·인증은 원본에서도 이 데모 범위 밖이며 여기서도 동작하지 않습니다.</li>
+          <li>비용 항목·여행 목록은 가상의 합성 목록이며 실제 회사 기준의 계정과목 체계가 아닙니다.</li>
+          <li>브라우저를 닫으면 상태는 사라집니다. 서버 저장·파일 저장·외부 전송은 하지 않습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>원본 자료와 라이선스</h2>
+    <p class="muted">
+      이 데모는 원본 저장소의 공개 안내 문서(README 계열)와 비민감 소스 파일만 읽고
+      <b>핵심 사용자 흐름과 규칙을 직접 다시 구현</b>했습니다. 원본 도구의 소스 코드를 복사하지 않았고,
+      화면·문구·데이터는 모두 새로 작성했습니다. 회사명·실명·연락처·원본 운영 주소는 공개하지 않습니다.
+    </p>
+    <p class="muted">
+      참고한 비민감 파일: <code>README.md</code>, <code>CANDIDATE_README.md</code>,
+      <code>webapp/README.md</code>, <code>webapp/requirements.txt</code>, <code>requirements.txt</code>,
+      <code>webapp/card_import.py</code>, <code>webapp/classification_rules.py</code>,
+      <code>webapp/pages.py</code>, <code>webapp/server.py</code>.
+    </p>
+  </section>
+
+</main>
+
+<footer class="wrap foot">
+  <p>소개는 GitHub 프로필 <a href="https://github.com/6soo" rel="noopener noreferrer">6soo</a> 프로필만 사용합니다.</p>
+  <p class="muted">모든 수치와 내역은 합성 예시 데이터입니다. 실제 성과 수치가 아닙니다.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사건 자료 정리 · 컨셉 데모 | 6Soo</title>
+<meta name="description" content="문서 저장소를 바탕으로 새로 만든 자료 분류와 검토 흐름의 컨셉 데모입니다. 기존 운영 제품이 아닙니다.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="home" href="../../index.html">&larr; 홈으로</a>
+    <span class="badge badge-synth">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 · 공개 포트폴리오</p>
+    <h1>사건 자료 정리 · 컨셉 데모</h1>
+    <p class="lede"><strong>이 화면은 자료 보관용 저장소를 바탕으로 새로 만든 컨셉입니다. 기존 자동화 제품의 구현 성과가 아닙니다.</strong></p>
+    <p class="lede">
+      메신저 캡처, 결제 내역, 진정서,한글 문서처럼 형태가 다른 자료를 한 건의 사건으로 모으고,
+      분류한 뒤 선택한 자료를 검토 메모로 모으고, 내부 검토일을 관리하는 흐름을 체험할 수 있게 만들었습니다.
+      이 화면의 모든 이름·금액·날짜·문구·자료 내용은 <strong>합성 예시</strong>이며 실제 사건과 무관합니다.
+    </p>
+    <ul class="hero-points">
+      <li>접수 정보만 입력하면 사건 카드와 기한이 만들어집니다.</li>
+      <li>자료를 분류하고 근거로 선택한 항목만 초안에 반영됩니다.</li>
+      <li>외부 전송·파일 저장·서버 통신 없이 브라우저 안에서만 동작합니다.</li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="flow-h">
+    <div class="panel-head">
+      <h2 id="flow-h">이 데모가 재현한 업무 흐름</h2>
+      <p class="panel-sub">원본 저장소는 실행 코드가 아니라 사건 자료만 모아 둔 문서 저장소라서, 실제로 매일 반복되는 Lawyer 업무 절차를 순서대로 재구성했습니다.</p>
+    </div>
+    <ol class="flow">
+      <li><span class="flow-no">1</span><b>사건 접수</b><span>의뢰인·사건 유형·금액을 입력하면 사건 카드와 예상 기한이 자동 생성됩니다.</span></li>
+      <li><span class="flow-no">2</span><b>자료 분류</b><span>각 자료의 분류(증거·참고·보류)와 검토 상태를 눌러 바꿉니다.</span></li>
+      <li><span class="flow-no">3</span><span class="flow-no flow-no-plain">→</span><b>근거 선택</b><span>초안에 넣을 자료만 체크합니다.</span></li>
+      <li><span class="flow-no">4</span><b>문서 초안 생성</b><span>선택한 자료가 빠짐없이 근거 목록에 반영된 초안 텍스트가 나옵니다.</span></li>
+      <li><span class="flow-no">5</span><b>기한 체크</b><span>절차 항목을 체크하며 진행 상황을 표시합니다.</span></li>
+    </ol>
+  </section>
+
+  <section class="panel" aria-labelledby="intake-h">
+    <div class="panel-head">
+      <h2 id="intake-h">1. 사건 접수</h2>
+      <p class="panel-sub">아래 값을 입력하고 등록하면 아래 사건 목록에 바로 추가됩니다. 입력값은 화면을 벗어나지 않습니다.</p>
+    </div>
+
+    <form class="intake" id="intakeForm" novalidate>
+      <div class="fields">
+        <p class="field">
+          <label for="fClient">의뢰인 (합성)</label>
+          <input id="fClient" name="fClient" type="text" placeholder="예: 미래무역 이서준" autocomplete="off" required>
+        </p>
+        <p class="field">
+          <label for="fMatter">사건 유형</label>
+          <select id="fMatter" name="fMatter">
+            <option value="civil">민사상금 / 손해배상</option>
+            <option value="debt">채무불이행</option>
+            <option value="criminal">형사 고소 (사기 등)</option>
+            <option value="admin">행정 심판 / 진정</option>
+          </select>
+        </p>
+        <p class="field">
+          <label for="fAmount">금액 (원)</label>
+          <input id="fAmount" name="fAmount" type="number" min="0" step="10000" value="12000000" inputmode="numeric">
+        </p>
+        <p class="field">
+          <label for="fDate">접수일</label>
+          <input id="fDate" name="fDate" type="date">
+        </p>
+        <p class="field field-wide">
+          <label for="fNote">상담 요지 (합성)</label>
+          <textarea id="fNote" name="fNote" rows="2" placeholder="상담에서 확인된 사실만 짧게 적습니다."></textarea>
+        </p>
+      </div>
+
+      <div class="form-foot">
+        <p class="hint" id="intakeHint">접수 1개월 뒤 내부 검토일을 표시하는 합성 예시입니다. 법정 기한 계산이나 법률 판단을 제공하지 않습니다.</p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">사건 등록</button>
+          <button type="button" class="btn btn-ghost" id="btnClearForm">입력만 지우기</button>
+        </div>
+      </div>
+      <p class="msg" id="intakeMsg" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="cases-h">
+    <div class="panel-head">
+      <h2 id="cases-h">2. 사건 목록과 기한 체크</h2>
+      <p class="panel-sub">사건을 누르면 아래 자료 분류와 초안 작업 대상이 그 사건으로 바뀝니다. 기한은 등록 시점부터 경과일이 계산됩니다.</p>
+    </div>
+
+    <div class="case-grid" id="caseGrid"></div>
+    <p class="msg" id="caseMsg" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="data-h">
+    <div class="panel-head">
+      <h2 id="data-h">3. 자료 분류와 근거 선택</h2>
+      <p class="panel-sub">분류 버튼은 누를 때마다 상태가 순환하고, 체크박스는 문서 초안에 넣을 근거를 고르는 용도입니다.</p>
+    </div>
+
+    <div class="toolbar">
+      <p class="current-case">작업 사건: <b id="activeCaseName">—</b></p>
+      <div class="toolbar-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="btnAddSample">합성 자료 1건 추가</button>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table class="data-table">
+        <caption class="sr-only">합성 자료 목록과 분류·검토 상태</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="col-check">근거</th>
+            <th scope="col">자료명 (합성)</th>
+            <th scope="col">구분</th>
+            <th scope="col">형태</th>
+            <th scope="col">분류</th>
+            <th scope="col">검토 상태</th>
+          </tr>
+        </thead>
+        <tbody id="itemBody"></tbody>
+      </table>
+    </div>
+    <p class="msg" id="itemMsg" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="draft-h">
+    <div class="panel-head">
+      <h2 id="draft-h">4. 문서 초안 생성</h2>
+      <p class="panel-sub">문서 종류를 고르고 초안을 만들면, 위에서 근거로 체크한 자료만 인용 목록에 들어가 다른 항목은 빠짐없이 제외됩니다.</p>
+    </div>
+
+    <div class="toolbar toolbar-wrap">
+      <p class="field field-inline">
+        <label for="fDoc">문서 종류</label>
+        <select id="fDoc">
+          <option value="criminal">고소장</option>
+          <option value="civil">민사소장</option>
+          <option value="claim">내용증명</option>
+        </select>
+      </p>
+      <div class="toolbar-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="btnDraft">초안 만들기</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnCopy">초안 텍스트 파일로 내려받기</button>
+      </div>
+    </div>
+
+    <pre class="draft" id="draftOut" tabindex="0">아직 생성된 초안이 없습니다. 사건을 선택한 뒤 &lsquo;초안 만들기&rsquo;를 누르세요.</pre>
+    <p class="msg" id="draftMsg" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="panel panel-limit" aria-labelledby="limit-h">
+    <div class="panel-head">
+      <h2 id="limit-h">실제 구현과 이 데모의 차이</h2>
+    </div>
+    <div class="limit-grid">
+      <div>
+        <h3>원본 저장소에서 확인된 것</h3>
+        <ul>
+          <li>사건별로 자료를 하위 폴더로 나눠 모아 두는 문서 저장소 형태로 보입니다.</li>
+          <li>문서 종류가 여러 갈래입니다. .docx 문서, .jpg / .png 이미지, .xlsx 표, .hwp 문서, .zip 묶음 파일이 함께 들어 있습니다.</li>
+          <li>폴더 이름과 파일 이름에 사건·단계 같은 식별자가 붙어 있어, 다시 찾을 때 사람이 이름을 맞춰 봐야 합니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>이 데모가 실제 대신 한 부분</h3>
+        <ul>
+          <li>원본에 실행 코드나 서비스 설정이 없어, 이 화면의 분류·초안·기한 규칙은 데모용으로 새로 정의했습니다.</li>
+          <li>파일 열기, OCR, PDF 변환, 전자소송송달 같은 실제 처리 단계는 넣지 않았습니다. 자료는 이름만 있는 목록으로만 다룹니다.</li>
+          <li>기한은 접수 1개월 뒤 내부 검토일을 표시하는 화면 예시입니다. 실제 사건의 법정 기한과 관계가 없습니다.</li>
+          <li>데이터는 새로고침하면 사라집니다. 서버 저장, 계정, 권한, 감사 기록이 없습니다.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="reset-zone">
+      <p>모든 입력·분류·초안·체크 상태를 처음 합성 데이터로 되돌립니다.</p>
+      <button type="button" class="btn btn-danger" id="btnResetAll">전체 초기화</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p><a href="../../index.html">&larr; 홈으로 돌아가기</a></p>
+    <p class="foot-note">합성 데이터 데모 · 모든 이름·금액·날짜·문구는 예시이며 실제 사건 자료와 무관합니다. 외부 전송 없음.</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

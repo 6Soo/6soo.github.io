@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Planner — 일정 생성부터 상품 견적까지의 여행 계획 워크플로 데모 (6Soo)</title>
+<meta name="description" content="여행 일정 생성 요청을 접수 큐에 넣고, 별도 워커가 파이프라인을 실행해 성공한 결과만 버전으로 남기는 합의 데이터 데모.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#demo">데모로 바로가기</a>
+
+<header class="topbar">
+  <a class="home" href="../../index.html">&larr; 6Soo 포트폴리오 홈</a>
+  <span class="badge badge-synth" title="모든 값은 실제 서비스에서 가져오지 않은 가상의 값입니다">합성 데이터 데모</span>
+</header>
+
+<main>
+  <section class="hero card">
+    <p class="eyebrow">업무 자동화 · AI 파이프라인 · 웹 서비스</p>
+    <h1>여행 계획 초안을 상품 견적으로 이어 붙이는 워크플로</h1>
+    <p class="lede">
+      개인 여행자가 조건을 입력하면 생성 요청만 접수(202)되고, 실제 파이프라인은 별도 워커가 실행합니다.
+      워커가 만든 결과는 검증에 통과한 것만 영속 버전으로 저장되고, 이후 수정·리믹스로 새 버전을 쌓습니다.
+      여행사 담당자는 본인 소유 일정 하나를 골라 판매용 상품 견적으로 바꿉니다.
+    </p>
+    <p class="note">
+      이 화면은 위 흐름을 브라우저에서 재현한 가짜 데모입니다. 서버, 데이터베이스, 지도·경로 API, 모델 호출은 없습니다.
+      운영 도메인과 회사명은 공개하지 않고 확인된 기능만 설명합니다.
+    </p>
+  </section>
+
+  <!-- ============ 1. 해결한 문제 ============ -->
+  <section class="card" aria-labelledby="h-problem">
+    <h2 id="h-problem">이 화면이 다루는 업무 문제</h2>
+    <div class="grid-3">
+      <article class="mini">
+        <h3>생성 요청과 실제 실행의 분리</h3>
+        <p>요청은 즉시 접수만 되고 응답합니다. 무거운 생성은 백그라운드 워커가 맡아 화면이 요청 중에도 멈추지 않습니다.</p>
+      </article>
+      <article class="mini">
+        <h3>실패한 결과는 남기지 않기</h3>
+        <p>파이프라인 검증에 실패한 초안은 버리고, 성공한 결과만 버전으로 저장합니다. revision 이력이 오염되지 않습니다.</p>
+      </article>
+      <article class="mini">
+        <h3>본인 소유 일정만 판매로 전환</h3>
+        <p>여행사 직원은 소유권을 확인받은 일정만 상품 견적으로 바꿀 수 있고, 견적 라인은 비용 엔진 결과를 그대로 사용합니다.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ 2. 데모 ============ -->
+  <section class="card demo-card" id="demo" aria-labelledby="h-demo">
+    <div class="demo-head">
+      <h2 id="h-demo">조작 가능한 데모</h2>
+      <p class="hint">순서대로 눌러 보세요. 1 → 2 → 3 → 4번 단계가 서로 이어집니다.</p>
+    </div>
+
+    <div class="steps-nav" role="tablist" aria-label="데모 단계">
+      <button class="tab is-active" role="tab" aria-selected="true"  data-panel="p-request"  id="t-request">1. 생성 요청</button>
+      <button class="tab"           role="tab" aria-selected="false" data-panel="p-pipeline" id="t-pipeline">2. 워커 파이프라인</button>
+      <button class="tab"           role="tab" aria-selected="false" data-panel="p-workspace" id="t-workspace">3. 버전 · 리믹스</button>
+      <button class="tab"           role="tab" aria-selected="false" data-panel="p-quote"     id="t-quote">4. 상품 견적 · 공유</button>
+    </div>
+
+    <!-- ---------- 1. 요청 ---------- -->
+    <div class="panel is-active" id="p-request" role="tabpanel" aria-labelledby="t-request">
+      <h3>1. 여행자 조건 입력 → 생성 요청 접수</h3>
+      <p class="panel-desc">
+        요청을 넣으면 202 접수 번호가 먼저 발급되고 파이프라인은 대기합니다.
+        지역·일수·테마·예산을 바꿔 보고 결과 차이를 확인해 보세요.
+      </p>
+
+      <form id="req-form" class="form-grid" novalidate>
+        <div class="field">
+          <label for="f-region">여행 지역</label>
+          <select id="f-region" name="region">
+            <option value="all">청운 지구 전체 (가상 지역)</option>
+            <option value="오르막 마을">오르막 마을</option>
+            <option value="운하 항구">운하 항구</option>
+            <option value="유리숲 평원">유리숲 평원</option>
+            <option value="갯골">갯골 노을 해안</option>
+            <option value="이슬바람 숲">이슬바람 숲</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-theme">여행 테마</label>
+          <select id="f-theme" name="theme">
+            <option value="all">테마 무관</option>
+            <option value="nature">자연 산책</option>
+            <option value="food">현지 음식</option>
+            <option value="water">물빛 락섬</option>
+            <option value="craft">공방 체험</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-days">여행 일수 <output id="o-days" for="f-days">3일</output></label>
+          <input type="range" id="f-days" name="days" min="1" max="5" step="1" value="3">
+        </div>
+
+        <div class="field">
+          <label for="f-party">인원 <output id="o-party" for="f-party">2명</output></label>
+          <input type="range" id="f-party" name="party" min="1" max="8" step="1" value="2">
+        </div>
+
+        <div class="field">
+          <label for="f-pace">하루 분량</label>
+          <select id="f-pace" name="pace">
+            <option value="420">여유 있게 (최대 7시간)</option>
+            <option value="480" selected>보통 (최대 8시간)</option>
+            <option value="560">알차게 (최대 9시간 20분)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-budget">총 예산 (원) <output id="o-budget" for="f-budget">900,000</output></label>
+          <input type="range" id="f-budget" name="budget" min="200000" max="2000000" step="50000" value="900000">
+        </div>
+
+        <div class="field field-wide">
+          <label for="f-note">여행자 요청 메모 (선택)</label>
+          <input type="text" id="f-note" name="note" maxlength="80" placeholder="예: 둘째 날 오전은 걷기 편하게" autocomplete="off">
+        </div>
+
+        <div class="field field-wide actions">
+          <button type="submit" class="btn btn-primary">생성 요청 접수</button>
+          <button type="button" class="btn btn-ghost" id="btn-reset">전체 상태 초기화</button>
+        </div>
+      </form>
+
+      <div class="receipt" id="receipt" hidden>
+        <span class="receipt-code">HTTP 202 Accepted</span>
+        <span class="receipt-id" id="receipt-id">-</span>
+        <span class="receipt-note">접수만 완료되고 파이프라인은 백그라운드 워커가 이어서 실행합니다.</span>
+      </div>
+    </div>
+
+    <!-- ---------- 2. 파이프라인 ---------- -->
+    <div class="panel" id="p-pipeline" role="tabpanel" aria-labelledby="t-pipeline" hidden>
+      <h3>2. 백그라운드 워커 실행 로그</h3>
+      <p class="panel-desc">
+        각 단계는 원본 저장소의 구성 요소를 그대로 대응시킵니다.
+        마지막 검증 단계가 통과해야 버전 저장까지 이어지고, 실패하면 저장이 중단됩니다.
+      </p>
+
+      <div class="pipeline-actions">
+        <button type="button" class="btn btn-primary" id="btn-run">워커 실행</button>
+        <button type="button" class="btn btn-ghost" id="btn-retry" hidden>같은 조건으로 다시 실행</button>
+        <span class="run-state" id="run-state" role="status">대기 중</span>
+      </div>
+
+      <ol class="pipeline" id="pipeline" aria-live="polite"></ol>
+
+      <div class="outcome" id="outcome" hidden></div>
+    </div>
+
+    <!-- ---------- 3. 워크스페이스 ---------- -->
+    <div class="panel" id="p-workspace" role="tabpanel" aria-labelledby="t-workspace" hidden>
+      <h3>3. 저장된 버전과 일정 리믹스</h3>
+      <p class="panel-desc">
+        검증을 통과한 결과만 버전 목록에 쌓입니다.
+        시간과 포함 여부를 바꾼 뒤 저장하면 새 버전이 생기고, 예전 버전은 그대로 남습니다.
+      </p>
+
+      <div class="ws-grid">
+        <aside class="versions">
+          <h4>버전 이력</h4>
+          <div id="version-list" class="version-list"><p class="empty">저장된 버전이 없습니다.</p></div>
+        </aside>
+
+        <div class="ws-main">
+          <div class="ws-toolbar" id="ws-toolbar" hidden>
+            <select id="f-active-version" aria-label="편집할 버전 선택"></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-restore">선택 버전으로 되돌리기</button>
+          </div>
+          <div id="itinerary" class="itinerary"><p class="empty">실행한 결과가 여기에 표시됩니다.</p></div>
+          <div class="ws-foot" id="ws-foot" hidden>
+            <button type="button" class="btn btn-primary" id="btn-save">변경 사항 새 버전으로 저장</button>
+            <span class="dirty" id="dirty-flag"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- 4. 견적 · 공유 ---------- -->
+    <div class="panel" id="p-quote" role="tabpanel" aria-labelledby="t-quote" hidden>
+      <h3>4. 소유 일정을 상품 견적으로 전환</h3>
+      <p class="panel-desc">
+        소유권이 있는 일정만 선택할 수 있습니다. 비용 엔진 결과를 판매 견적 라인으로 바꾸고 마진을 더해 판매가를 냅니다.
+        링크 생성은 화면 안에서만 이루어지며 실제 발송은 하지 않습니다.
+      </p>
+
+      <div class="quote-grid">
+        <div class="quote-form">
+          <div class="field">
+            <label for="f-quote-version">견적 대상 일정 (본인 소유)</label>
+            <select id="f-quote-version"></select>
+          </div>
+          <div class="field">
+            <label for="f-headcount">판매 정원 <output id="o-headcount" for="f-headcount">6명</output></label>
+            <input type="range" id="f-headcount" min="1" max="20" step="1" value="6">
+          </div>
+          <div class="field">
+            <label for="f-margin">마진율 <output id="o-margin" for="f-margin">18%</output></label>
+            <input type="range" id="f-margin" min="0" max="60" step="1" value="18">
+          </div>
+          <div class="field">
+            <label for="f-tax">부가세 처리</label>
+            <select id="f-tax">
+              <option value="0">별도 (판매가 + 세금)</option>
+              <option value="10">포함 (10%)</option>
+            </select>
+          </div>
+          <p class="tiny" id="quote-guard">보유한 일정이 없으면 견적을 만들 수 없습니다.</p>
+        </div>
+
+        <div class="quote-out">
+          <div class="lines" id="quote-lines"></div>
+          <dl class="totals" id="quote-totals"></dl>
+        </div>
+      </div>
+
+      <div class="share-block">
+        <h4>고정 버전 공유</h4>
+        <p class="panel-desc small">
+          현재 날짜와 순서를 고정한 읽기 전용 보기를 만듭니다. 나중에 일정을 바꿔도 공유된 고정 버전은 변하지 않습니다.
+        </p>
+        <div class="share-actions">
+          <button type="button" class="btn btn-ghost" id="btn-share">읽기 전용 고정 버전 만들기</button>
+          <button type="button" class="btn btn-ghost" id="btn-share-toggle" hidden>고정 버전 보기</button>
+        </div>
+        <output class="share-link" id="share-link" hidden></output>
+        <div class="share-preview" id="share-preview" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 확인된 구현 ============ -->
+  <section class="card" aria-labelledby="h-verified">
+    <h2 id="h-verified">원본에서 확인한 구현</h2>
+    <p class="panel-desc">README와 의존성 목록, 공개 소스 구조만 보고 적은 내용입니다. 성과 수치는 없습니다.</p>
+    <ul class="check-list">
+      <li>생성은 202 접수와 별도 워커 실행으로 나뉘며, 성공한 결과만 영속 버전으로 저장합니다.</li>
+      <li>개인 일정의 저장, 수정, 공유, 리믹스와 여행사 직원의 상품 견적 전환이 분리된 화면으로 구현되어 있습니다.</li>
+      <li>백엔드는 FastAPI, Pydantic, SQLAlchemy, Alembic, JWT 기반 인증, PostgreSQL 드라이버로 구성되어 있습니다.</li>
+      <li>프런트엔드는 React, React Router, Leaflet 기반이며, 생성 상태를 SSE로 수신하는 구성이 있습니다.</li>
+      <li>실행 모듈은 런타임, 경로 추정, 시간 배치, 비용 산정, 파이프라인 루프로 나뉘고, 외부 키 없이도 합성 자료와 고정 경로로 동작합니다.</li>
+      <li>지식 폴더에 지역 후보 자료와 변환 어댑터가 있고, 지식 조회 단계를 통해 후보를 가져옵니다.</li>
+    </ul>
+
+    <h3>기술 스택</h3>
+    <div class="tags">
+      <span class="tag">Python</span><span class="tag">FastAPI</span><span class="tag">Pydantic</span>
+      <span class="tag">SQLAlchemy</span><span class="tag">Alembic</span><span class="tag">PostgreSQL</span>
+      <span class="tag">JWT</span><span class="tag">React</span><span class="tag">React Router</span>
+      <span class="tag">Leaflet</span><span class="tag">TypeScript</span><span class="tag">Vite</span>
+      <span class="tag">SSE</span>
+    </div>
+  </section>
+
+  <!-- ============ 4. 한계 ============ -->
+  <section class="card" aria-labelledby="h-limit">
+    <h2 id="h-limit">데모와 실제 구현의 차이</h2>
+    <ul class="diff-list">
+      <li><strong>서버가 없습니다.</strong> 이 데모의 접수·워커·버전 저장은 브라우저 메모리에서만 동작하며 새로고침하면 사라집니다.</li>
+      <li><strong>경로와 지도를 계산하지 않습니다.</strong> 실제 서비스는 조회 응답으로만 경로를 제공하지만 이 화면에는 이동 시간이 모두 가상의 고정값입니다.</li>
+      <li><strong>모델을 호출하지 않습니다.</strong> 후보를 고르는 규칙은 모두 이 데모 파일 안의 결정적 로직이며 실제 모델 추론 결과가 아닙니다.</li>
+      <li><strong>인증과 권한 검사가 없습니다.</strong> 소유권 확인, 공유 토큰 검증, 접근 차단은 서버가 담당하며 이 데모에는 없습니다.</li>
+      <li><strong>데이터는 모두 합성입니다.</strong> 지역명, 시설명, 요금, 일정은 실제 장소와 무관하게 만들어진 값입니다.</li>
+      <li><strong>운영 판단은 공개하지 않습니다.</strong> 실제 서비스 주소, 회사명, 배포 구성, 내부 문서는 이 데모에 포함하지 않았습니다.</li>
+    </ul>
+
+    <p class="attrib">
+      이 저장소는 타인이 공개한 오픈소스 도구를 로컬에 붙여 운영한 사례입니다.
+      개인이 처음부터 전부 개발한 프로젝트로 소개하지 않습니다.
+      도구 원본은 <code>paseo</code>이며 copyrights는 원작자와 오픈소스 기여자에게 있습니다.
+      이 화면에서 다룬 것은 로컬 연동과 운영 개선에 해당하는 부분이고, 도구 원본 소스는 복사하지 않았습니다.
+    </p>
+  </section>
+</main>
+
+<footer class="foot">
+  <a class="home" href="../../index.html">&larr; 6Soo 포트폴리오 홈</a>
+  <p>합성 데이터 데모 · 실제 저장·발송·결제·외부 API 호출 없음 · 6Soo</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

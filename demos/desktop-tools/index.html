@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>데스크톱 브라우저 자동 배치 콘솔 · 합성 데이터 데모</title>
+<meta name="description" content="다중 모니터 환경에서 관리 대상 창을 고르고, 프로세스 트리와 핫키를 다루는 흐름을 재현한 합성 데이터 데모.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#demo">데모로 바로가기</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="home-link" href="../../index.html">
+      <span aria-hidden="true">&larr;</span> 홈으로
+    </a>
+    <span class="badge badge-synthetic">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 · Windows 데스크톱 유틸리티</p>
+    <h1>다중 모니터에서 관리 창을 한 번에 배치하는 흐름</h1>
+    <p class="lede">
+      실제 서비스 대신 브라우저를 띄우는 로컬 도구를 다뤄 본 experience입니다.
+      이 페이지는 그 도구의 <strong>조작 흐름</strong>만 골라 순수 HTML로 재현했습니다.
+      화면의 모니터, 프로세스, 창 좌표는 전부 예시 값이며 외부로 전송되거나 저장되지 않습니다.
+    </p>
+    <ul class="hero-badges">
+      <li>외부 API 호출 없음</li>
+      <li>폼 전송 없음</li>
+      <li>순수 정적 파일</li>
+    </ul>
+  </section>
+
+  <section class="card" id="verified">
+    <h2>원본에서 확인한 구현</h2>
+    <p class="muted">
+      아래 항목은 저장소 코드에서 함수와 클래스의 이름과 구조로 확인한 내용입니다.
+      화면에 표시되는 수치나 효과는 측정값이 아니라 예시입니다.
+    </p>
+    <ul class="fact-list">
+      <li>
+        <span class="fact-tag">모니터 열거</span>
+        디스플레이 목록을 모아 위치를 비교하고, 가장 왼쪽에 있는 모니터를 고르는 함수가 분리되어 있습니다.
+      </li>
+      <li>
+        <span class="fact-tag">실행 파일 탐색</span>
+        설치된 브라우저 실행 파일 후보 목록을 만든 뒤, 선택한 대상을 자식 프로세스로 실행합니다.
+      </li>
+      <li>
+        <span class="fact-tag">프로세스 정리</span>
+        실행한 프로세스의 트리를 집어 Job Object로 묶어, 종료 시 자식까지 함께 회수합니다.
+      </li>
+      <li>
+        <span class="fact-tag">창 탐색 · 핫키</span>
+        대상 프로세스에 속한 창을 찾는 단계와, 키보드 후크를 다루는 클래스가 존재합니다.
+      </li>
+    </ul>
+  </section>
+
+  <section class="card demo-card" id="demo">
+    <div class="demo-head">
+      <h2>조작 데모</h2>
+      <p class="muted">
+        1) 대상 모니터 선택 &rarr; 2) 실행 옵션 지정 &rarr; 3) 실행 &rarr; 4) 핫키 등록 &rarr; 5) 정리
+      </p>
+    </div>
+
+    <div class="demo-grid">
+
+      <!-- 1단계: 모니터 선택 -->
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step">1</span>
+          <h3>대상 모니터 선택</h3>
+        </div>
+        <p class="panel-desc">모니터 카드를 클릭하면 창을 놓을 좌표와 DPI 배율이 계산됩니다.</p>
+        <div class="monitor-list" id="monitorList" role="radiogroup" aria-label="대상 모니터 선택"></div>
+        <div class="readout" id="monitorReadout">
+          <p class="readout-empty">선택된 모니터가 없습니다.</p>
+        </div>
+      </section>
+
+      <!-- 2단계: 실행 옵션 -->
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step">2</span>
+          <h3>실행 옵션</h3>
+        </div>
+        <p class="panel-desc">실행 시 프로세스 트리 구성에 반영됩니다.</p>
+        <div class="options">
+          <label class="opt">
+            <input type="checkbox" id="optProfile" checked>
+            <span>임시 프로필 격리</span>
+            <small>실행마다 새 프로필 폴더를 씁니다.</small>
+          </label>
+          <label class="opt">
+            <input type="checkbox" id="optGpu" checked>
+            <span>GPU 프로세스 포함</span>
+            <small>자식 프로세스 목록에 포함합니다.</small>
+          </label>
+          <label class="opt">
+            <input type="checkbox" id="optKiosk">
+            <span>창 장식 제거 모드</span>
+            <small>제목 표시줄 없이 전체 화면처럼 배치합니다.</small>
+          </label>
+        </div>
+        <button class="btn btn-primary btn-block" id="runBtn" disabled>브라우저 실행</button>
+        <p class="hint" id="runHint">먼저 대상 모니터를 선택하세요.</p>
+      </section>
+
+      <!-- 3단계: 실행 결과 -->
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step">3</span>
+          <h3>실행 결과</h3>
+        </div>
+        <p class="panel-desc">창 배치 결과와 묶인 프로세스 트리입니다.</p>
+        <div class="result" id="resultBox">
+          <p class="readout-empty">아직 실행 전입니다.</p>
+        </div>
+      </section>
+
+      <!-- 4단계: 핫키 -->
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step">4</span>
+          <h3>핫키 등록</h3>
+        </div>
+        <p class="panel-desc">입력 칸을 클릭한 뒤 실제로 키를 눌러 조합을 등록합니다. 브라우저가 실행 중이어야 등록됩니다.</p>
+        <div class="hotkey-row">
+          <input type="text" id="hotkeyInput" class="hotkey-input" readonly
+                 placeholder="여기를 클릭하고 키를 누르세요"
+                 aria-label="핫키 조합 입력">
+          <button class="btn btn-ghost" id="hotkeyClear">해제</button>
+        </div>
+        <div class="hotkey-state" id="hotkeyState">등록된 핫키가 없습니다.</div>
+        <p class="hint">조합은 Ctrl 또는 Alt 중 하나와 다른 키 한 개로만 등록됩니다.</p>
+      </section>
+
+      <!-- 5단계: 로그 -->
+      <section class="panel panel-wide">
+        <div class="panel-head">
+          <span class="step">5</span>
+          <h3>작업 로그</h3>
+        </div>
+        <div class="log-head">
+          <p class="panel-desc" style="margin:0">이 데모 안에서만 쌓이는 기록입니다. 새로고침하면 지워집니다.</p>
+          <div class="log-actions">
+            <button class="btn btn-ghost" id="stopBtn" disabled>세션 종료 · 임시 폴더 정리</button>
+            <button class="btn btn-danger" id="resetBtn">전체 초기화</button>
+          </div>
+        </div>
+        <ol class="log" id="log" aria-live="polite"></ol>
+      </section>
+
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>실제 구현과 데모의 차이</h2>
+    <div class="diff-grid">
+      <div>
+        <h3>원본 도구</h3>
+        <ul>
+          <li>Windows API를 직접 호출해 창과 프로세스를 만듭니다.</li>
+          <li>실제 디스플레이 배치를 읽고 실제 창을 움직입니다.</li>
+          <li>Job Object로 자식 프로세스까지 함께 종료합니다.</li>
+          <li>임시 프로필 폴더를 만들어 쓰고 나면 지웁니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>이 데모</h3>
+        <ul>
+          <li>화면에 있는 값은 모두 예시이며 실제 창을 만들지 않습니다.</li>
+          <li>브라우저 실행은 목록을 그리는 동작으로 대체했습니다.</li>
+          <li>정리는 메모리 상태만 되돌립니다.</li>
+          <li>파일 저장, 네트워크 전송, 실행은 전혀 하지 않습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="page-foot">
+    <p>
+      이 데모는 원본 도구의 소스를 복사하지 않고, 확인된 동작 구조를 바탕으로 새로 만든 예제입니다.
+      회사명과 운영 서비스명은 공개하지 않으며, 성과 수치를 제시하지 않습니다.
+    </p>
+    <p><a class="home-link" href="../../index.html"><span aria-hidden="true">&larr;</span> 홈으로 돌아가기</a></p>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

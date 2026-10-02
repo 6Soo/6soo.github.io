@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>에이전트 작업 세션 콘솔 데모 | 오픈소스 도구 로컬 연동·운영 사례</title>
+<meta name="description" content="코딩 에이전트 여러 개를 한 화면에서 지시하고 검토하는 흐름을 재현한 합성 데이터 데모." />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#demo">데모로 바로가기</a>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="home-link" href="../../index.html">&larr; 홈으로</a>
+    <span class="badge badge-synthetic">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero card">
+    <p class="eyebrow">업무 자동화 &middot; AI 활용 &middot; 로컬 연동 사례</p>
+    <h1>에이전트 작업 세션 콘솔</h1>
+    <p class="lead">
+      여러 코딩 에이전트를 동시에 돌리면 어떤 에이전트가 무엇을 하고 있는지, 지금 무엇을 허가해야 하는지,
+      어디까지 끝났는지를 한 화면에서 놓치기 쉽습니다. 이 데모는 <strong>지시 &rarr; 실행 &rarr; 권한 확인 &rarr; 후속 지시 &rarr; 다른 에이전트로 위임</strong>
+      흐름을 그대로 눌러 보게 합니다.
+    </p>
+    <p class="note">
+      화면의 모든 에이전트 이름, 모델명, 로그, 지시는 실제 기록이 아니라 데모용으로 미리 만들어 둔 합성 데이터입니다.
+      외부 API 호출, 실제 코드 실행, 파일 저장, 전송은 하지 않습니다.
+    </p>
+  </section>
+
+  <section class="card" id="demo">
+    <div class="card-head">
+      <h2>조작해 보는 데모</h2>
+      <button type="button" class="btn btn-ghost" id="resetBtn">전체 상태 초기화</button>
+    </div>
+
+    <div class="console">
+
+      <!-- 1. 실행 패널 -->
+      <form class="panel launch" id="launchForm" autocomplete="off">
+        <h3><span class="step-no">1</span> 새 작업 실행</h3>
+
+        <div class="field">
+          <label for="provider">에이전트 제공자</label>
+          <select id="provider" name="provider">
+            <option value="claude">Claude Code</option>
+            <option value="codex">Codex</option>
+            <option value="copilot">GitHub Copilot</option>
+            <option value="opencode">OpenCode</option>
+            <option value="pi">Pi</option>
+          </select>
+          <p class="hint">원본에서 제공자를 고르는 방식과 동일한 목록을 예시로만 옮겼습니다.</p>
+        </div>
+
+        <div class="field">
+          <label for="model">모델 (시뮬레이션)</label>
+          <select id="model" name="model"></select>
+        </div>
+
+        <div class="field">
+          <label for="isolation">격리 방식</label>
+          <select id="isolation" name="isolation">
+            <option value="worktree">워크트리 격리 &mdash; 새 브랜치에서 실행</option>
+            <option value="local">로컬 격리 &mdash; 현재 폴더에서 실행</option>
+          </select>
+          <p class="hint">워크트리를 고르면 별도 브랜치 이름이 합성으로 생성됩니다.</p>
+        </div>
+
+        <div class="field">
+          <label for="prompt">작업 지시</label>
+          <textarea id="prompt" name="prompt" rows="3" required>주문 목록 API의 응답 시간을 줄여 주세요.</textarea>
+          <p class="hint">입력한 문장의 키워드에 따라 실행 단계가 달라집니다. 어떤 문장이든 동작합니다.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="runBtn">에이전트 실행</button>
+        <p class="inline-error" id="formError" role="alert" hidden>작업 지시를 1자 이상 입력해 주세요.</p>
+      </form>
+
+      <!-- 2. 세션 스트림 -->
+      <section class="panel stream" aria-labelledby="streamTitle">
+        <div class="card-head">
+          <h3 id="streamTitle"><span class="step-no">2</span> 실행 중인 세션</h3>
+          <div class="stream-actions">
+            <span class="badge" id="sessionBadge" hidden></span>
+            <button type="button" class="btn btn-ghost btn-sm" id="stopBtn" hidden>중지 요청</button>
+          </div>
+        </div>
+
+        <p class="empty" id="streamEmpty">
+          아직 실행 중인 작업이 없습니다. 왼쪽에서 지시를 입력하고 &lsquo;에이전트 실행&rsquo;을 눌러 주세요.
+        </p>
+
+        <ol class="timeline" id="timeline" aria-live="polite" aria-relevant="additions"></ol>
+
+        <div class="followup" id="followupBox" hidden>
+          <label for="followup">후속 지시</label>
+          <div class="followup-row">
+            <input type="text" id="followup" placeholder="예: 변경한 파일에 테스트도 추가해 주세요" />
+            <button type="button" class="btn btn-secondary" id="sendBtn">지시 보내기</button>
+          </div>
+          <p class="hint">전송하면 같은 세션 뒤에 단계가 덧붙습니다. 실제 전송은 하지 않습니다.</p>
+        </div>
+      </section>
+
+      <!-- 3. 에이전트 트랙 -->
+      <section class="panel track" aria-labelledby="trackTitle">
+        <h3 id="trackTitle"><span class="step-no">3</span> 에이전트 트랙</h3>
+        <p class="empty" id="trackEmpty">실행된 에이전트가 여기에 쌓입니다.</p>
+        <ul class="agent-list" id="agentList"></ul>
+
+        <h4 class="sub-title">협업 스킬로 위임하기</h4>
+        <p class="hint">
+          원본 저장소에 함께 들어 있는 스킬 중 세 가지를 시뮬레이션합니다.
+          선택하면 새 에이전트와 함께 &lsquo;인수인계 브리핑&rsquo;이 만들어집니다.
+        </p>
+        <div class="skill-row" role="group" aria-label="협업 스킬 선택">
+          <button type="button" class="btn btn-chip" data-skill="handoff">handoff &mdash; 구현 위임</button>
+          <button type="button" class="btn btn-chip" data-skill="advisor">advisor &mdash; 둘째 의견</button>
+          <button type="button" class="btn btn-chip" data-skill="committee">committee &mdash; 위원회</button>
+        </div>
+        <div class="briefing" id="briefing" hidden>
+          <div class="card-head">
+            <h4 class="sub-title">인수인계 브리핑</h4>
+            <button type="button" class="btn btn-ghost btn-sm" id="closeBriefing">닫기</button>
+          </div>
+          <dl id="briefingList"></dl>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 4. 권한 모델 -->
+    <section class="perm" aria-labelledby="permTitle">
+      <h3 id="permTitle">권한 확인이 왜 필요한가</h3>
+      <p class="hint">
+        실행 도중 에이전트가 파일 수정이나 명령 실행을 요구할 때, 사용자가 &lsquo;허용 / 거절&rsquo;을 고르는 지점이 이 데모의 핵심입니다.
+        아래 권한 이름과 구분은 원본 문서에서 확인한 구조를 그대로 옮긴 것입니다.
+      </p>
+      <div class="table-wrap">
+        <table class="perm-table">
+          <caption class="sr-only">데몬 권한과 그 범위</caption>
+          <thead>
+            <tr><th scope="col">권한</th><th scope="col">허용 범위</th></tr>
+          </thead>
+          <tbody id="permBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <section class="card">
+    <h2>원본에서 확인한 내용</h2>
+    <div class="grid-2">
+      <div>
+        <h3>확인한 기능</h3>
+        <ul class="check-list">
+          <li>에이전트를 관리하는 <strong>로컬 서버 데몬</strong>이 있고, 데스크톱 앱과 모바일 앱, 웹, CLI가 그 데몬에 붙는 구조입니다.</li>
+          <li>제공자는 <strong>Claude Code, Codex, GitHub Copilot, OpenCode, Pi</strong> 다섯 가지를 인터페이스에서 선택할 수 있습니다.</li>
+          <li>CLI에는 실행(<code>run</code>), 목록(<code>ls</code>), 출력 첨부(<code>attach</code>), 후속 지시(<code>send</code>) 같은 명령이 있습니다.</li>
+          <li>워크스페이스를 로컬 또는 워크트리로 격리해 만들고, 프로젝트와 워크스페이스를 관리·이름변경·보관할 수 있습니다.</li>
+          <li>권한은 역할 이름이 아니라 <code>daemon.read</code>, <code>workspace.write</code> 같은 의미 단위 권한으로 나뉘며, 없는 권한은 거절로 처리됩니다.</li>
+          <li>일정과 하트비트 같은 반복 실행 수단, 여러 에이전트를 다루는 스킬(handoff, advisor, committee)이 함께 제공됩니다.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>기술 스택</h3>
+        <ul class="plain-list">
+          <li>TypeScript 모노레포(npm workspaces)</li>
+          <li>Electron 데스크톱 앱 / Expo 기반 모바일 앱(웹 포함)</li>
+          <li>WebSocket 기반 데몬 API와 MCP 서버 제공</li>
+          <li>종단 간 암호화 릴레이 패키지, 플러그인 패키지</li>
+          <li>Vitest, Playwright, oxlint, oxfmt 검증 도구</li>
+        </ul>
+        <h3>이 데모의 한계</h3>
+        <ul class="plain-list">
+          <li>데몬, 실제 에이전트 프로세스, 에이전트 CLI 인증은 실행하지 않습니다. 로그와 단계는 미리 정해 둔 대본입니다.</li>
+          <li>모델 목록과 단계 흐름은 실제 응답이 아니라 데모용 예시입니다.</li>
+          <li>음성 제어, 릴레이 터널, 일정/하트비트 실행, 플러그인 설치는 이 데모 범위 밖입니다.</li>
+          <li>권한 표는 설명용으로, 실제 권한 부여나 차단 로직은 구현하지 않았습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card attribution">
+    <h2>출처와 copyrights</h2>
+    <p>
+      이 화면의 대상 도구 <strong>Paseo</strong>는 외부에서 공개된 오픈소스 프로젝트이며 Apache-2.0 라이선스를 따릅니다
+      (원본 저장소 <code>getpaseo/paseo</code>, <code>README.ko.md</code>, <code>package.json</code>, <code>LICENSE</code> 확인).
+      copyrights는 원저자에게 있습니다.
+    </p>
+    <p>
+      이 데모는 개인이 해당 프로젝트를 처음부터 만든다는 뜻이 아니라, <strong>해당 오픈소스 도구를 로컬 환경에 붙여 다루며 정리한 연동·운영 개선 사례</strong>를 보여주기 위한 것입니다.
+      화면의 이름, 지시, 로그, 수치는 모두 합성 데이터이며 실제 성과 수치가 아닙니다.
+    </p>
+    <p class="note">홈으로 돌아가기: <a href="../../index.html">../../index.html</a></p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>6Soo 포트폴리오 &middot; 합성 데이터 데모 &middot; 외부 전송 없음</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

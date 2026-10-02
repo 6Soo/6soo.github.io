@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카카오톡 업무 지시 자동화 파이프라인 | 6Soo 포트폴리오</title>
+<meta name="description" content="메신저로 들어온 업무 지시를 수신, 파싱, 분석, 승인, 도메인 라우팅까지 흘려보내는 자동화 파이프라인 합성 데이터 데모.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 바로가기</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="home" href="../../index.html">&larr; 홈으로</a>
+    <span class="badge badge-synth">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 &middot; 수신 파이프라인</p>
+    <h1>메신저로 들어온 업무 지시를<br>도메인 작업으로 배분하는 파이프라인</h1>
+    <p class="lead">
+      개인 메신저에는 공식 수신 API가 없어 창 열거, 알림 수신, 클립보드 복사 같은
+      아웃오브프로세스 관측만 쓸 수 있습니다. 그래서 이 프로젝트의 난이도는 전부
+      &ldquo;수신&rdquo;에 몰려 있고, 그 다음 단계는 규칙과 승인 게이트로 이어집니다.
+      이 화면은 그 흐름을 원문 복사 한 번부터 도메인 배분까지 그대로 흉내 낸 합성 데모입니다.
+    </p>
+    <ul class="hero-facts">
+      <li><b>수신</b> 알림 주 수신기 + PC 클립보드 보정</li>
+      <li><b>적재</b> 안정 ID 기반 JSONL, 중복 제거</li>
+      <li><b>승인</b> 자동 발송 전 사람 확인 게이트</li>
+    </ul>
+  </section>
+
+  <section class="card flow-card">
+    <h2>파이프라인 5단계</h2>
+    <ol class="flow">
+      <li><span class="flow-n">1</span><b>수신</b><em>앱 패키지 필터 + 채팅 제목 정확 일치</em></li>
+      <li><span class="flow-n">2</span><b>파싱</b><em>날짜, 발신자, 시각, 여러 줄 본문</em></li>
+      <li><span class="flow-n">3</span><b>분석</b><em>업무 유형 감지 후 도메인 라우팅</em></li>
+      <li><span class="flow-n">4</span><b>승인</b><em>실행 전 사용자 확인, 반려 가능</em></li>
+      <li><span class="flow-n">5</span><b>디스패치</b><em>대상 저장소 작업 골격 생성</em></li>
+    </ol>
+  </section>
+
+  <section class="card" id="step1">
+    <div class="card-head">
+      <h2>1. 수신 원문 파싱</h2>
+      <p class="card-sub">채팅창에서 그대로 복사한 텍스트 형태를 넣으면 파서가 본문을 분리합니다. 같은 메시지를 두 번 넣어도 안정 ID로 걸러집니다.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="pane">
+        <div class="pane-head">
+          <label for="rawInput">수신 원문 (합성)</label>
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" data-preset="report">예시: 운영보고</button>
+            <button type="button" class="btn btn-ghost" data-preset="ins">예시: 여행자보험</button>
+            <button type="button" class="btn btn-ghost" data-preset="edtech">예시: 학원</button>
+            <button type="button" class="btn btn-ghost" data-preset="misc">예시: 직접 처리</button>
+          </div>
+        </div>
+        <textarea id="rawInput" rows="9" spellcheck="false"
+          placeholder="2026. 8. 3. 오전 9:12&#10;임팀장&#10;다음 주까지 초안 만들어줘."></textarea>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="roomInput">채팅 제목 (수신 시 표시명, 합성)</label>
+            <input id="roomInput" type="text" value="업무 지시" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="filterInput">통과 제목 필터 (정확 일치)</label>
+            <input id="filterInput" type="text" value="업무 지시" spellcheck="false">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="parseBtn">파싱하고 적재</button>
+          <button type="button" class="btn btn-ghost" id="resetBtn">전체 초기화</button>
+        </div>
+        <p class="hint" id="parseHint">외부 전송 없음. 입력은 이 브라우저 메모리에서만 다뤄집니다.</p>
+      </div>
+
+      <div class="pane">
+        <div class="pane-head">
+          <h3>파싱 결과</h3>
+          <span class="tag" id="parseTag">대기</span>
+        </div>
+        <dl class="kv" id="parseOut">
+          <dt>발신자</dt><dd data-k="sender">&mdash;</dd>
+          <dt>날짜</dt><dd data-k="date">&mdash;</dd>
+          <dt>시각</dt><dd data-k="time">&mdash;</dd>
+          <dt>안정 ID</dt><dd data-k="id" class="mono">&mdash;</dd>
+          <dt>본문 줄 수</dt><dd data-k="lines">&mdash;</dd>
+        </dl>
+        <div class="body-box">
+          <div class="body-box-head">본문</div>
+          <pre class="body-pre" id="parseBody">아직 파싱된 메시지가 없습니다.</pre>
+        </div>
+        <div class="dlg" id="dlgList" hidden>
+          <div class="body-box-head">적재 대기열 (JSONL 적재 전)</div>
+          <ul class="queue" id="queueList"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="step2">
+    <div class="card-head">
+      <h2>2. 분석, 승인, 디스패치</h2>
+      <p class="card-sub">대기열에서 항목을 골라 파이프라인을 돌리면 각 단계 판정 로그가 남습니다. 승인 전에는 어떤 실행도 만들어지지 않습니다.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="pane">
+        <div class="field">
+          <label for="selectMsg">대기열 항목</label>
+          <select id="selectMsg"></select>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="runBtn">파이프라인 실행</button>
+        </div>
+        <p class="hint">데모 규칙표는 아래 라우팅 규칙 카드를 참고하세요. 실제 구현은 로컬 AI CLI 호출과 폴백 체인을 씁니다.</p>
+
+        <div class="dlg" id="logWrap" hidden>
+          <div class="body-box-head">실행 로그</div>
+          <ol class="log" id="logList"></ol>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-head">
+          <h3>승인 게이트</h3>
+          <span class="tag" id="gateTag">실행 전</span>
+        </div>
+        <p class="gate-text" id="gateText">실행할 항목을 선택하고 <b>파이프라인 실행</b>을 누르면 승인 카드가 열립니다.</p>
+        <div class="gate-card" id="gateCard" hidden>
+          <div class="gate-row"><span>요청 ID</span><b class="mono" id="gateId">&mdash;</b></div>
+          <div class="gate-row"><span>라우팅 대상</span><b id="gateTarget">&mdash;</b></div>
+          <div class="gate-row"><span>산출물</span><b id="gateArtifact">&mdash;</b></div>
+          <div class="gate-row"><span>실행 범위</span><b id="gateScope">&mdash;</b></div>
+          <p class="gate-note">자동 발신은 운영정책상 제한 사유가 될 수 있어, 사람 승인이 통과해야 디스패치 골격만 만들어집니다.</p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="approveBtn">승인하고 골격 생성</button>
+            <button type="button" class="btn btn-danger" id="rejectBtn">반려</button>
+          </div>
+        </div>
+        <div class="dlg" id="dispatchWrap" hidden>
+          <div class="body-box-head">디스패치 골격 (승인 이력)</div>
+          <ul class="queue" id="dispatchList"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>라우팅 규칙</h2>
+    <p class="card-sub">특정 업무는 일반 실행기로 돌리지 않고 전용 어댑터로 분리합니다. 전용 경로가 준비되기 전에는 우회하지 않습니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>감지 조건 (합성 예시)</th><th>대상</th><th>실행 방식</th><th>통과 조건</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>여행자보험, 가입자, 보험료</td>
+            <td class="mono">travel_ins</td>
+            <td>전용 어댑터 + 별도 검수</td>
+            <td>전용 경로 준비 전 <b>우회 금지</b></td>
+          </tr>
+          <tr>
+            <td>수강생, 미납, 기수</td>
+            <td class="mono">edtech</td>
+            <td>상위 관리자 감시 하위 프로세스</td>
+            <td>동일 입력 재처리 방지</td>
+          </tr>
+          <tr>
+            <td>보고서, 초안, 조사</td>
+            <td class="mono">research</td>
+            <td>초안 골격만 생성</td>
+            <td>외부 실행은 추가 승인</td>
+          </tr>
+          <tr>
+            <td>위 조건에 해당 없음</td>
+            <td>&mdash;</td>
+            <td>직접 처리 목록</td>
+            <td>디스패치 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>원본에서 확인한 구현</h2>
+    <div class="grid-3">
+      <div class="mini">
+        <h3>수신 경로</h3>
+        <p>Android 알림 주 수신으로 전환하고, PC 쪽은 창 구조를 직접 만지는 대신 클립보드 복사로 본문을 보정합니다. 창 구조 실측에서 UI 자동화 경로는 실패하고 클립보드 경로가 동작한 것이 전환 근거입니다.</p>
+      </div>
+      <div class="mini">
+        <h3>적재 규칙</h3>
+        <p>복사 본문을 파싱해 날짜, 발신자, 시각, 여러 줄 본문을 분리하고, 안정 ID로 중복을 제거한 뒤 JSONL에 이어 붙입니다. 반복 실행해도 같은 항목이 쌓이지 않습니다.</p>
+      </div>
+      <div class="mini">
+        <h3>승인과 이관</h3>
+        <p>실행 전 승인은 Telegram 인라인 액션으로 받고, 모든 답변 원문을 보존한 뒤 업무 한정 규칙과 전역 규칙을 나눠 저장합니다. 디스패치는 골격까지만 만들고 외부 효과는 다음 승인을 기다립니다.</p>
+      </div>
+    </div>
+    <p class="footnote">
+      이 프로젝트는 카카오톡에 개인 대화 수신 API가 없다는 전제를 전제로,
+      아웃오브프로세스 관측만 쓰는 형태로 로컬 자동화 도구를 조합해 구축한 개인 운영 자동화 사례입니다.
+      도구 원본 코드를 복사해 둔 것이 아니며, 연동한 각 오픈소스 도구의 저작권은 원작자에게 있습니다.
+    </p>
+  </section>
+
+  <section class="card limit-card">
+    <h2>데모와 실제 구현의 차이</h2>
+    <ul class="limits">
+      <li><b>수신</b> 실제 구현은 안드로이드 알림 수신기와 Windows 창 제어를 사용합니다. 이 데모는 텍스트를 직접 붙여 넣습니다.</li>
+      <li><b>분석</b> 실제 구현은 로컬 AI CLI를 호출하고 실패 시 다른 CLI로 폴백합니다. 이 데모는 화면에 있는 키워드 규칙표만 씁니다.</li>
+      <li><b>승인</b> 실제 구현은 다른 메신저의 일회용 인라인 액션으로 승인을 받습니다. 이 데모는 버튼 두 개로 대체했습니다.</li>
+      <li><b>저장</b> 실제 구현은 로컬 JSONL과 데이터베이스 계약으로 이어 붙입니다. 이 데모는 브라우저 메모리만 쓰고 새로고침하면 사라집니다.</li>
+      <li><b>외부 효과</b> 이 데모는 외부 API 호출, 발송, 결제, 실제 저장을 하지 않습니다. 모든 이름과 수치는 합성입니다.</li>
+    </ul>
+    <div class="btn-row">
+      <button type="button" class="btn btn-ghost" id="resetBtn2">전체 초기화</button>
+      <a class="btn btn-ghost" href="../../index.html">다른 프로젝트 보기</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>합성 데이터 데모입니다. 실명, 회사명, 실제 대화 내용, 실제 지표를 포함하지 않습니다.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

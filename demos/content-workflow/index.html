@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카드뉴스 제작·검수 파이프라인 데모</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#demo">데모 본문으로 건너뛰기</a>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="home" href="../../index.html">← 홈으로</a>
+    <span class="tag tag-synthetic">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main id="demo">
+  <section class="wrap hero">
+    <h1>카드뉴스 1편을 데이터로 다루고, 규칙으로 걸러내고, 일괄로 뽑는 파이프라인</h1>
+    <p class="lede">
+      인스타그램 카드뉴스 시리즈는 카드 내용을 코드로 관리한다. 한 시리즈가 카드 데이터 한 묶음이고,
+      데이터에서 게시용 세로 이미지 전체를 일괄 생성한다. 이 데모는 그 흐름에서 실제로 손으로 확인하는
+      단계만 재현한다. 텍스트·사진·지표는 모두 <strong>합성 예시</strong>이며 외부 호출은 없다.
+    </p>
+  </section>
+
+  <section class="wrap steps" aria-label="파이프라인 단계">
+    <ol class="step-list">
+      <li class="step is-now"><b>1</b><span>카드 데이터 작성</span></li>
+      <li class="step" id="stepGate"><b>2</b><span>규칙 검수(게이트)</span></li>
+      <li class="step" id="stepRender"><b>3</b><span>일괄 렌더</span></li>
+      <li class="step" id="stepArchive"><b>4</b><span>기록 페이지</span></li>
+    </ol>
+  </section>
+
+  <section class="wrap grid">
+    <!-- 좌: 카드 데이터 편집 -->
+    <div class="card panel">
+      <h2>1. 카드 데이터</h2>
+      <p class="hint">한 장의 카드 내용만 바꿔 보면 오른쪽 미리보기가 즉시 갱신된다. 한 폴더 = 한 게시물.</p>
+
+      <div class="field">
+        <label for="cardSelect">편집할 카드</label>
+        <select id="cardSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="kind">카드 종류</label>
+        <select id="kind">
+          <option value="cover">cover — 표지(제목 중심)</option>
+          <option value="photo">photo — 풀블리드 실사진 + 하단 스크림</option>
+          <option value="paper">paper — 종이 카드(목록 요약)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="cardTitle">제목</label>
+        <input id="cardTitle" type="text" maxlength="40">
+      </div>
+
+      <div class="field">
+        <label for="cardBody">본문</label>
+        <textarea id="cardBody" rows="3" maxlength="140"></textarea>
+      </div>
+
+      <div class="field" id="itemsWrap">
+        <label for="cardItems">요약 목록 <span class="unit">paper 카드에서만 사용 (한 줄 = 한 항목)</span></label>
+        <textarea id="cardItems" rows="3" placeholder="한 줄에 하나씩"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="cardPhoto">사진 배경 <span class="unit">없음 = 단색 카드</span></label>
+        <select id="cardPhoto"></select>
+      </div>
+
+      <div class="actions">
+        <button id="addCard" type="button" class="btn">카드 한 장 추가</button>
+        <button id="resetAll" type="button" class="btn btn-ghost">모든 상태 초기화</button>
+      </div>
+    </div>
+
+    <!-- 우: 미리보기 + 검사 -->
+    <div class="card panel">
+      <h2>2. 미리보기 <span class="unit">게시 규격 4:5 (1080×1350 축척 재현)</span></h2>
+
+      <div class="preview-wrap">
+        <div class="preview-stage">
+          <div id="preview" class="preview" role="img" aria-label="카드 미리보기"></div>
+        </div>
+        <div class="scale-note">
+          <p>원본 구현은 300×375 원판을 3.6배 확대해 1080×1350로 캡처한다. 글리프는 벡터라 확대 후에도 선명하고 크기 비율이 원판과 그대로 유지된다.</p>
+        </div>
+      </div>
+
+      <div class="gate">
+        <div class="gate-head">
+          <h3>규칙 검수</h3>
+          <span id="gateBadge" class="badge">실행 전</span>
+        </div>
+        <ul id="gateList" class="gate-list"></ul>
+        <div class="actions">
+          <button id="runGate" type="button" class="btn">전체 카드 검수 실행</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="card panel">
+      <h2>3. 일괄 렌더 시뮬레이션</h2>
+      <p class="hint">
+        검수 결과가 통과면 렌더만 돌릴 수 있다. 여기선 서버 작업 없이 카드별 완료 상태와
+        라벨만 재현한다. 실제 파일·업로드는 만들어지지 않는다.
+      </p>
+      <div class="actions">
+        <button id="runRender" type="button" class="btn" disabled>선택 카드만 렌더</button>
+        <button id="runRenderAll" type="button" class="btn btn-ghost" disabled>시리즈 전체 렌더</button>
+      </div>
+      <div class="render-grid" id="renderGrid"></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="card panel">
+      <h2>4. 기록 페이지</h2>
+      <p class="hint">렌더 뒤 카드별로 한 장씩 놓이는 검토용 페이지 묶음. 여기서는 카드 목록만 표시한다.</p>
+      <div id="archiveList" class="archive-list"><p class="empty">아직 렌더 기록이 없습니다.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="card panel verified">
+      <h2>원본에서 확인한 사실</h2>
+      <ul class="fact-list">
+        <li>카드뉴스 렌더 스크립트가 시리즈 폴더의 <code>cards.mjs</code>를 읽어 카드마다 1080×1350 PNG를 생성한다.</li>
+        <li>비주얼은 기준본 카드 CSS를 그대로 쓰고 내용 슬롯만 데이터로 채운다(단일 원천 원칙).</li>
+        <li>쪽번호 규칙이 코드에 박혀 있다. 표지는 몇 장이든 게시할 때 1쪽, 내지는 2쪽부터 센다.</li>
+        <li>사진 없는 단색 카드는 기본 금지이고, 종이 카드는 8·9장에만 쓰는 것이 문서화된 규칙이다.</li>
+        <li>이미지형 산출물은 PDF로 묶지 않고 PNG 원본을 그대로 전달한다는 전달 규칙이 있다.</li>
+      </ul>
+
+      <h2>데모와 실제 구현의 차이</h2>
+      <ul class="fact-list">
+        <li>이 데모는 순수 정적 HTML/CSS/JS다. 원본은 Node 스크립트와 로컬 헤드리스 브라우저로 PNG를 실제로 만든다.</li>
+        <li>사진은 합성 색면으로 그린다. 원본은 실사진 파일 경로를 배경으로 넣는다.</li>
+        <li>규칙 검수는 문서화된 규칙을 시각화한 것이며, 원본의 검사 스크립트 실행 결과와 동일한 판정은 아니다.</li>
+        <li>외부 API 호출, 인증, 실제 저장은 하지 않는다. 입력 내용은 화면 안에서만 바뀐다.</li>
+        <li>회사와 사람 이름, 실제 서비스 주소는 공개하지 않는다.</li>
+      </ul>
+
+      <p class="credit">
+        6Soo · GitHub 프로필만 사용. 원본 저장소의 도구 소스는 복사하지 않았고,
+        README와 공개된 스크립트 구조에서 확인되는 동작 방식만 재현했다.
+      </p>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

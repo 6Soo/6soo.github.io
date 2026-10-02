@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>약속 감시 브리핑과 산출물 렌더 파이프라인 | 6Soo 포트폴리오</title>
+<meta name="description" content="운영 세션 로그에서 미완료 약속을 추출해 재확인 기한과 함께 브리핑하고, 문서 산출물을 PDF·이미지로 렌더하는 자동화 파이프라인 체험 데모. 합성 데이터 사용." />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#demo">데모로 바로가기</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="home-link" href="../../index.html" aria-label="포트폴리오 홈으로 이동">
+      <span aria-hidden="true">&larr;</span> 홈
+    </a>
+    <span class="badge badge-synthetic" role="note">합성 데이터 데모</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">업무 자동화 · 문서 산출물 파이프라인</p>
+    <h1>약속 감시 브리핑과 산출물 렌더 파이프라인</h1>
+    <p class="lead">
+      여러 운영 도구를 한 저장소에서 관리하는 구조를 실제로 쓰는 중에 정리한 사례입니다.
+      에이전트 세션 기록에서 <strong>아직 끝나지 않은 약속</strong>을 자동으로 뽑아 재확인 기한과 함께 브리핑하고,
+      완성된 HTML 문서를 브라우저 엔진으로 벡터 PDF와 고해상도 이미지로 굽습니다.
+    </p>
+    <ul class="hero-facts">
+      <li><span>문서 저장소</span><strong>운영 도구 + 산출물 + 검증 문서를 한곳에</strong></li>
+      <li><span>핵심 문제</span><strong>보낸 뒤 확인할 날이 기록되지 않음</strong></li>
+      <li><span>해결</span><strong>대기 상태와 재확인 기한을 강제</strong></li>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-problem">
+    <h2 id="h-problem">어떤 문제를 풀었나</h2>
+    <div class="cols">
+      <div>
+        <h3>문제</h3>
+        <p>
+          여러 저장소와 도구를 쓰다 보면 시스템 사이의 데이터가 사람 손을 거칩니다.
+          예약 정보가 예약 쪽에 있는데, 다음 절차에 필요한 명단을 다시 옮겨 적어야 합니다.
+          특히 외부 업체에 보낸 요청의 <em>답이 왔는지 확인하는 날짜</em>가 어디에도 남지 않아
+          회신 누락이 그대로 사고가 됩니다.
+        </p>
+      </div>
+      <div>
+        <h3>설계 방향</h3>
+        <p>
+          대규모 재작성 대신 <strong>기존 도구를 그대로 두고</strong> 가장 많이 쓰는 곳을 데이터 축으로 삼고,
+          나머지는 그 축을 참조하는 도구로 정리했습니다. 그리고 기록을 남기는 문서 저장소를 만들어
+          의사결정과 우선순위가 한곳에 쌓이게 했습니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-verified">
+    <h2 id="h-verified">원본에서 확인한 구현</h2>
+    <p class="muted">아래 내용은 저장소의 README와 도구 소스에서 직접 확인한 사실입니다. 성과 수치는 포함하지 않습니다.</p>
+    <ul class="check-list">
+      <li>
+        <strong>추출 파이프라인</strong>
+        <p>세션 기록을 주기적으로 증분 스캔해 규칙으로 후보를 선별하고, 구조화한 뒤 대기 목록에 넣고, 세션 시작 시 브리핑으로 되돌려주는 흐름이 문서에 명시되어 있습니다.</p>
+      </li>
+      <li>
+        <strong>대기를 1급 상태로 두는 규칙</strong>
+        <p>“상대 회신 대기”를 독립 상태로 두고 재확인 기한을 반드시 정하게 합니다. 기한이 지나면 브리핑 맨 위에 경고로 올라온다는 설계가 원본 문서에 기록되어 있습니다.</p>
+      </li>
+      <li>
+        <strong>되먹임 고리 차단</strong>
+        <p>스크립트가 스스로 만든 브리핑 문장을 다시 후보로 뽑는 고리를 막기 위해 표식을 남기고 스캔에서 제외합니다. 구조화 호출이 실패한 후보는 다음 회차에 재시도하도록 보존합니다.</p>
+      </li>
+      <li>
+        <strong>문서 렌더 도구</strong>
+        <p>HTML 원고를 브라우저 엔진으로 PDF(배경색 인쇄, HTML의 페이지 여백 우선 적용)와 2배 해상도 PNG(라이트·다크 강제, 전체 세로 길이 캡처)로 변환하는 스크립트 두 개가 저장소에 있습니다.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="card card-demo" id="demo" aria-labelledby="h-demo">
+    <div class="demo-head">
+      <div>
+        <h2 id="h-demo">조작 가능한 데모</h2>
+        <p class="muted">아래 모든 기록과 날짜는 화면 안에서 만든 합성 데이터입니다. 서버로 전송하거나 파일로 저장하지 않습니다.</p>
+      </div>
+      <button type="button" class="btn btn-ghost" id="resetAll">전체 상태 초기화</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="데모 시나리오 선택">
+      <button type="button" role="tab" id="tab-brief" aria-controls="panel-brief" aria-selected="true" class="tab is-active">1. 약속 브리핑·기한 관리</button>
+      <button type="button" role="tab" id="tab-render" aria-controls="panel-render" aria-selected="false" class="tab">2. 산출물 렌더 미리보기</button>
+    </div>
+
+    <!-- 탭 1 -->
+    <section id="panel-brief" role="tabpanel" aria-labelledby="tab-brief" class="tabpanel">
+      <ol class="steps">
+        <li>합성 세션 기록을 스캔해 약속 후보를 찾습니다.</li>
+        <li>찾은 후보를 골라 재확인 기한이 있는 대기 항목으로 등록합니다.</li>
+        <li>브리핑에서 기한 상태를 보고 처리합니다.</li>
+      </ol>
+
+      <div class="steps-grid">
+        <section class="panel" aria-labelledby="h-scan">
+          <h3 id="h-scan">1) 세션 기록 스캔</h3>
+          <label class="label" for="sessionLog">합성 세션 기록</label>
+          <p class="hint">한 줄에 한 문장. <code>이름: 내용</code> 형식이며, 대화를 만든 스크립트의 브리핑 문장은 되먹임 방지를 위해 제외됩니다.</p>
+          <textarea id="sessionLog" rows="9" spellcheck="false" aria-describedby="scanHint"></textarea>
+          <p class="hint" id="scanHint">실제 구현은 후보를 구조화 모델에 넘겨 무엇/누가/언제를 뽑습니다. 이 데모는 같은 입력을 규칙으로 처리합니다.</p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="runScan">스캔 실행</button>
+            <button type="button" class="btn btn-ghost" id="loadSample">샘플 다시 불러오기</button>
+          </div>
+          <p class="scan-log" id="scanLog" role="status" aria-live="polite">아직 스캔하지 않았습니다.</p>
+
+          <div id="candidateBox" hidden>
+            <h4>추출된 후보 <span class="count" id="candidateCount">0</span></h4>
+            <ul class="candidates" id="candidateList"></ul>
+            <button type="button" class="btn btn-primary" id="registerSelected">선택한 후보를 대기 목록으로 등록</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-inbox">
+          <h3 id="h-inbox">2) 대기 목록에 직접 추가</h3>
+          <form id="manualForm" novalidate>
+            <div class="field">
+              <label class="label" for="mTitle">할 일 내용</label>
+              <input type="text" id="mTitle" name="title" maxlength="80" placeholder="예: 안전모 발주서 확인 회신" required />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="label" for="mWho">담당자</label>
+                <input type="text" id="mWho" name="who" maxlength="24" placeholder="예: 정우 대리" required />
+              </div>
+              <div class="field">
+                <label class="label" for="mWhen">재확인 기한</label>
+                <input type="date" id="mWhen" name="when" required />
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="mNote">비고 (선택)</label>
+              <input type="text" id="mNote" name="note" maxlength="80" placeholder="예: 견적서 회신 1차" />
+            </div>
+            <p class="hint" id="formMsg" role="status" aria-live="polite">이 폼은 서버로 전송되지 않습니다. 값이 유효할 때만 화면 목록에 반영됩니다.</p>
+            <button type="submit" class="btn btn-primary">대기 목록에 추가</button>
+          </form>
+
+          <h3 class="mt">3) 브리핑</h3>
+          <div class="stats" id="stats" aria-live="polite"></div>
+          <div class="filters" id="filters" role="group" aria-label="상태별 보기">
+            <button type="button" class="chip is-active" data-filter="all">전체</button>
+            <button type="button" class="chip" data-filter="waiting">대기 중</button>
+            <button type="button" class="chip" data-filter="doing">진행 중</button>
+            <button type="button" class="chip" data-filter="done">완료</button>
+          </div>
+          <ul class="inbox" id="inbox"></ul>
+        </section>
+      </div>
+    </section>
+
+    <!-- 탭 2 -->
+    <section id="panel-render" role="tabpanel" aria-labelledby="tab-render" class="tabpanel" hidden>
+      <ol class="steps">
+        <li>완성된 HTML 원고를 넘기면 용지 규격과 여백을 그대로 따릅니다.</li>
+        <li>인쇄용 PDF는 배경색과 음영을 포함하고, 화면 미리보기용 이미지는 2배 해상도로 굽습니다.</li>
+        <li>아래 옵션을 바꿔 보면 미리보기 결과가 어떻게 달라지는지 확인할 수 있습니다.</li>
+      </ol>
+
+      <div class="steps-grid">
+        <section class="panel" aria-labelledby="h-render-ctrl">
+          <h3 id="h-render-ctrl">렌더 옵션</h3>
+          <form id="renderForm">
+            <div class="field-row">
+              <div class="field">
+                <label class="label" for="paper">용지 규격</label>
+                <select id="paper">
+                  <option value="A4">A4 (210 x 297 mm)</option>
+                  <option value="Letter">Letter (216 x 279 mm)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="label" for="orient">방향</label>
+                <select id="orient">
+                  <option value="portrait">세로</option>
+                  <option value="landscape">가로</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="margin">여백 <output id="marginOut" for="margin">16</output> mm</label>
+              <input type="range" id="margin" min="8" max="30" step="1" value="16" />
+              <p class="hint">원본 스크립트는 HTML의 <code>@page</code> 규격을 우선 적용합니다. 여기서는 같은 값을 직접 지정합니다.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="theme">화면 테마 강제</label>
+              <select id="theme">
+                <option value="light">라이트</option>
+                <option value="dark">다크</option>
+              </select>
+            </div>
+            <label class="check">
+              <input type="checkbox" id="printBg" checked />
+              <span>배경색·표 머리글 음영까지 인쇄에 포함</span>
+            </label>
+            <p class="hint" id="renderHint" role="status" aria-live="polite">실제 렌더는 서버에서 브라우저 엔진으로 파일을 굽습니다. 이 미리보기는 같은 옵션을 화면에 재현한 것입니다.</p>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="h-preview">
+          <h3 id="h-preview">미리보기</h3>
+          <div class="preview-meta" id="previewMeta"></div>
+          <div class="preview-viewport" id="previewViewport">
+            <div class="sheet-holder" id="sheetHolder">
+            <div class="sheet" id="sheet">
+              <div class="sheet-page" id="sheetPage">
+                <header class="doc-head">
+                  <h4>요약 문서 표지 (합성)</h4>
+                  <p class="doc-sub">발주·제안 요약 · 예시 문서</p>
+                </header>
+                <table class="doc-table">
+                  <thead>
+                    <tr><th>구분</th><th>항목</th><th>수량</th><th>상태</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>자재</td><td>안전모 (합성)</td><td>40</td><td>발주 준비</td></tr>
+                    <tr><td>운송</td><td>지역 물류 2건 (합성)</td><td>2</td><td>일정 조율</td></tr>
+                    <tr><td>정산</td><td>지급 확인 대기</td><td>1</td><td>승인 대기</td></tr>
+                  </tbody>
+                </table>
+                <div class="doc-note">
+                  표 머리글의 배경색과 음영이 “배경 인쇄 포함” 옵션에 따라 인쇄물에 남는지 달라집니다.
+                </div>
+                <ul class="doc-list">
+                  <li>재확인 기한이 지난 대기 항목은 브리핑 상단으로 이동합니다.</li>
+                  <li>기한이 정해지지 않은 후보는 기본 재확인일을 자동 배정합니다.</li>
+                  <li>완료 처리한 항목은 목록 아래로 내려갑니다.</li>
+                </ul>
+                <div class="doc-foot">1 / 1 · 합성 데이터 데모</div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </section>
+
+  <section class="card" aria-labelledby="h-scope">
+    <h2 id="h-scope">구현 범위와 실제와의 차이</h2>
+    <div class="table-scroll">
+      <table class="cmp">
+        <caption class="sr-only">데모와 실제 구현의 차이</caption>
+        <thead>
+          <tr><th scope="col">구분</th><th scope="col">이 데모</th><th scope="col">원본의 실제 구현</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">후보 추출</th><td>브라우저 규칙·문자열 처리</td><td>증분 스캔 후 구조화 모델 호출, 실패 시 후보 보존 후 재시도</td></tr>
+          <tr><th scope="row">스캔 주기</th><td>버튼을 눌렀을 때만 실행</td><td>주기적으로 자동 실행되는 스캐너</td></tr>
+          <tr><th scope="row">알림</th><td>브라우저 화면 안에서만 갱신</td><td>메신저 봇으로 음성·텍스트 전달</td></tr>
+          <tr><th scope="row">데이터 보관</th><td>메모리에만 존재, 새로고침 시 초기화</td><td>운영 폴더의 데이터 파일에 누적</td></tr>
+          <tr><th scope="row">렌더</th><td>옵션 반영을 보여주는 시각 재현</td><td>브라우저 엔진으로 PDF·PNG 파일 생성</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">
+      외부 API 호출, 파일 저장, 메신저 발송, 결제는 하지 않습니다. 폼 입력은 제출해도 화면 밖으로 나가지 않으며,
+      표시된 모든 수치·기한·인물은 합성 데이터입니다.
+    </p>
+  </section>
+
+  <footer class="site-footer">
+    <p>
+      <a href="../../index.html">홈으로 돌아가기</a>
+      · 회사명·서비스명·담당자 이름·연락처·운영 주소는 비식별 처리했습니다.
+    </p>
+    <p class="muted">원본 저장소 저작자에게 저작권이 있습니다. 이 데모는 내부 운영 도구를 로컬에서 함께 써온 사례이며, 개인이 처음부터 단독 개발한 산출물이 아닙니다.</p>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
