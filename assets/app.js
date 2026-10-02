@@ -5,7 +5,7 @@ const styles={'업무 자동화':['#eef1ff','#243bed'],'웹 서비스':['#e8f4fa
 const editorial={
   'booking':['예약과 입금 정산','예약·입금·대장용 명단을 연결합니다. 입금 기록이 바뀌면 미수 잔액과 그룹별 정산 상태가 함께 갱신됩니다.',['Next.js','TypeScript','Turso']],
   'ledger':['비용 분류와 장부 자동화','카드 내역을 규칙으로 분류하고, 중복 입력과 규칙 충돌을 확인합니다. 분류 결과가 장부 집계로 이어집니다.',['Python','SQLite','Apps Script']],
-  'trip-planner':['AI 일정 설계와 상품 견적','생성 요청·검증·수정·버전 관리를 상품 견적까지 연결하는 흐름입니다. 실제 모델 호출은 시뮬레이션합니다.',['FastAPI','React','PostgreSQL']],
+  'trip-planner':['AI 일정 설계와 상품 견적','생성 요청·검증·수정·버전 관리를 상품 견적까지 연결하는 흐름입니다. 모델 호출 없이 규칙으로 동작하는 데모입니다.',['FastAPI','React','PostgreSQL']],
   'bus-seats':['일정 분석과 좌석 배정','붙여넣은 일정 문구를 구조화하고, 차량의 좌석을 배정합니다. 원문 입력과 운영 화면을 한 흐름으로 연결합니다.',['JavaScript','HTML','CSS']],
   'message-workflow':['메신저 업무 지시 처리','비정형 메시지를 업무 항목으로 정리하고 승인 후 라우팅하는 흐름입니다. 실제 메시지를 발송하지 않습니다.',['Python','SQLite','Android']],
   'insurance-workflow':['보험 명단 검증','가입 명단의 입력을 검증하고 민감정보를 가리는 업무 흐름입니다. 보험 가입과 외부 전송은 실행하지 않습니다.',['Python','FastAPI','Playwright']],
